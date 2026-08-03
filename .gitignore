@@ -1,0 +1,36 @@
+# Secrets
+.env
+.env.*
+!.env.example
+web/.env.local
+
+# Dependencies and builds
+node_modules/
+web/node_modules/
+web/.next/
+web/out/
+web/*.tsbuildinfo
+web/next-env.d.ts
+
+# Local runtime data
+web/data/*
+!web/data/.gitkeep
+content/_media/*
+!content/_media/.gitkeep
+downloads/
+research/_state.json
+
+# Optional browser sessions / local targets
+web/scripts/group_poster/profiles/
+web/scripts/group_poster/targets.json
+
+# Logs and OS files
+*.log
+*.pid
+.DS_Store
+Thumbs.db
+
+# Hosting tools
+.vercel/
+.wrangler/
+.cloudflared/
