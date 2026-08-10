@@ -2,12 +2,14 @@
 
 Ứng dụng local-first để tạo, lưu, quản lý, nghiên cứu và phân phối nội dung bằng Claude Code. App chạy trên máy của bạn tại `http://localhost:8502`; file Markdown trong `content/` là nguồn dữ liệu chính.
 
+> Muốn dựng cả quy trình thay vì chỉ cài app? Bắt đầu với [Content OS Local-First: checklist từ brand context đến lịch xuất bản](docs/CONTENT-SYSTEM-PLAYBOOK.md).
+
 ## Cài bằng Claude Code từ link GitHub
 
 Dán nguyên câu này cho Claude Code:
 
 ```text
-Hãy cài Contentta Content Agent từ https://github.com/thanhthuduc99/contentta-content-agent. Đọc README.md và CLAUDE.md trước, kiểm tra máy, clone repo, chạy script setup phù hợp, tạo .env từ .env.example nhưng không tự điền hoặc in secret, sau đó chạy app trên localhost:8502. Không tạo ảnh. Nếu thiếu key tuỳ chọn thì bỏ qua tính năng đó.
+Hãy cài Contentta Content Agent từ https://github.com/thanhthuduc99/contentta-content-agent. Đọc README.md, CLAUDE.md và docs/CONTENT-SYSTEM-PLAYBOOK.md trước; kiểm tra máy; clone repo; chạy script setup phù hợp; tạo .env từ .env.example nhưng không tự điền hoặc in secret; sau đó chạy app trên localhost:8502. Không tạo ảnh. Nếu thiếu key tuỳ chọn thì bỏ qua tính năng đó.
 ```
 
 Claude sẽ thực hiện các bước clone, cài dependency và mở app. Những bước cần đăng nhập hoặc lấy API key vẫn cần bạn thao tác trên tài khoản của chính mình.
@@ -65,7 +67,7 @@ Không có API key nào bắt buộc chỉ để mở app, dán nội dung thủ
 | Custom domain | Cloudflare Tunnel + Cloudflare Access |
 | Edit daily-news | Project edit-agent riêng; mặc định tắt |
 
-Xem [hướng dẫn cài đặt đầy đủ](docs/SETUP.md), [cách lấy API key](docs/API-KEYS.md) và [cách dùng custom domain](docs/CUSTOM-DOMAIN.md).
+Xem [playbook dựng hệ thống content](docs/CONTENT-SYSTEM-PLAYBOOK.md), [hướng dẫn cài đặt đầy đủ](docs/SETUP.md), [cách lấy API key](docs/API-KEYS.md) và [cách dùng custom domain](docs/CUSTOM-DOMAIN.md).
 
 ## Lưu ý về deploy
 
