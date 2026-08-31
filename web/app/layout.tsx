@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Bricolage_Grotesque, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import Sidebar from "./sidebar";
 import RootBackground from "./root-background";
 
-const display = localFont({
+const display = Bricolage_Grotesque({
   variable: "--font-bricolage",
-  display: "swap",
-  src: "../assets/fonts/BeVietnamPro-ExtraBold.ttf",
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["400", "500", "600", "700", "800"],
 });
-const body = localFont({
+const body = Be_Vietnam_Pro({
   variable: "--font-bevietnam",
-  display: "swap",
-  src: [
-    { path: "../assets/fonts/BeVietnamPro-Regular.ttf", weight: "400", style: "normal" },
-    { path: "../assets/fonts/BeVietnamPro-SemiBold.ttf", weight: "600", style: "normal" },
-    { path: "../assets/fonts/BeVietnamPro-ExtraBold.ttf", weight: "800", style: "normal" },
-  ],
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {

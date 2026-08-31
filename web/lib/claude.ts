@@ -14,9 +14,14 @@ async function readSafe(p: string): Promise<string> {
 }
 
 // Gọi claude CLI headless (dùng subscription, không tốn API). web=true bật WebSearch/WebFetch.
+// --settings ép outputStyle "default": nếu không, subprocess ăn theo outputStyle account
+// (vd "Explanatory") → nội dung lẫn khối "✶ Insight ──" vào giữa caption/post đăng thật.
+const HEADLESS_SETTINGS = path.join(REPO_ROOT, "web", "lib", "headless-claude-settings.json");
 function runClaude(prompt: string, web = false): Promise<string> {
   return new Promise((resolve, reject) => {
-    const args = ["-p", "--output-format", "text"];
+    // shell:true trên Windows chỉ join args bằng space, không tự quote — path REPO_ROOT
+    // có thể chứa space nên phải tự bọc "" mới không bị cmd cắt giữa chừng.
+    const args = ["-p", "--output-format", "text", "--settings", `"${HEADLESS_SETTINGS}"`];
     if (web) args.push("--allowedTools", "WebSearch,WebFetch,Read");
     const child = spawn("claude", args, {
       cwd: REPO_ROOT,
@@ -57,14 +62,12 @@ const CT_LABEL: Record<string, string> = {
 };
 
 async function buildContext(type: string): Promise<string> {
-  const voice = await readSafe(path.join(SYSTEM_DIR, "voice-profile.md"));
   const biz = await readSafe(path.join(SYSTEM_DIR, "business-context.md"));
   const patterns = await readSafe(path.join(SYSTEM_DIR, "skills", "writing-patterns.md"));
   const tmplFile =
     type === "youtube" ? "long-video-template.md" : "post-templates.md";
   const tmpl = await readSafe(path.join(SYSTEM_DIR, "templates", tmplFile));
   return [
-    "# VOICE PROFILE\n" + voice,
     "# BUSINESS CONTEXT\n" + biz,
     "# WRITING PATTERNS\n" + patterns,
     "# TEMPLATE\n" + tmpl,
@@ -80,16 +83,22 @@ export async function generate(input: GenerateInput): Promise<{
 
   let task: string;
   if (input.type === "youtube") {
-    task = `NHIỆM VỤ: Viết kịch bản video YouTube dài (20-25 phút) theo template.
+    task = `NHIỆM VỤ: Viết SƯỜN BÀI cho video YouTube dài (20-25 phút) theo template. KHÔNG viết word-for-word.
 Loại content: ${ctLabel}
 Chủ đề: ${input.topic}
 ${input.notes ? "Ghi chú: " + input.notes : ""}
 
-BẮT BUỘC theo template:
-- Mở đầu bằng 5 title vidIQ-style + breakdown + recommend Top 2.
-- Intro hook tự nhiên (KHÔNG dùng form "Không phải X. Không phải Y. Chỉ Z.").
-- Đầy đủ sections, recap, outro (KHÔNG câu hỏi engagement-bait).
-- YouTube Description: footer block ở ĐẦU (copy nguyên xi từ template) + title + timestamps + tags.
+CẤU TRÚC BẮT BUỘC, theo đúng thứ tự:
+1. "## Title đề xuất": 5 title, mỗi title 1 dòng trần. KHÔNG breakdown, KHÔNG angle, KHÔNG đếm ký tự, KHÔNG recommend.
+2. "## HOOK (20-60s)": VIẾT ĐỦ CÂU. First line chọn 1 kiểu (câu hỏi / tuyên bố sốc / kể chuyện / preview / kết nối cá nhân / số liệu / thách thức / trích dẫn / ví von / bằng chứng). Rồi introduction làm đủ 3 việc: bối cảnh, stakes (không nắm chỗ này thì hỏng cái gì), payoff. Trả lời hết câu hỏi mà title đặt ra nhưng VIẾT LIỀN MẠCH, KHÔNG đánh số "Câu một, câu hai", KHÔNG mở kiểu "mình đi qua ba thứ". Cắm 1 chi tiết cụ thể kiểm chứng được để gây chú ý. Chốt payoff bằng con số cấu trúc ("gói hết vào bốn thứ"). Không câu chào, không jargon, ngôn ngữ mức lớp 5.
+3. "OPEN LOOP sang Ý N" trước mỗi ý: VIẾT ĐỦ CÂU, xây tò mò để ý sắp tới nghe quan trọng hơn ý vừa xong.
+4. "## Ý N - <tên>": BULLET, mỗi dòng 1 ý, có số liệu thật. Viết bullet bằng cách tự hỏi người xem sẽ có câu hỏi gì ở mục này. Cắm marker [SLIDE 02], [DEMO: ...] inline trong bullet, slide đánh số tăng dần. Kết mỗi ý bằng 1 dòng "Chốt: ...".
+5. "## RECAP": bullet.
+6. "## OUTRO + CTA": VIẾT ĐỦ CÂU theo framework Hook, Curiosity, Action. Luôn CTA sang 1 video khác. KHÔNG "like và subscribe", KHÔNG tóm tắt lại nội dung, KHÔNG câu hỏi engagement-bait.
+7. "## YOUTUBE DESCRIPTION": footer block ở ĐẦU (copy nguyên xi từ template), rồi 1-2 câu tóm tắt video, rồi timestamps, rồi tags. KHÔNG viết bullet dài kiểu "Bạn sẽ biết:".
+
+KHÔNG tạo mục PROMISE riêng. KHÔNG tạo mục GHI CHÚ SẢN XUẤT ở cuối file.
+Xưng "mình"/"bạn", gọi model là "con model"/"con agent". Tuyệt đối không dùng ký tự em-dash hay mũi tên.
 
 Chỉ trả về nội dung Markdown hoàn chỉnh. Không dùng tool, không hỏi lại, không thêm lời dẫn.`;
   } else if (input.type === "short") {
@@ -99,7 +108,7 @@ Chủ đề: ${input.topic}
 ${input.notes ? "Ghi chú: " + input.notes : ""}
 
 YÊU CẦU:
-- Bám đúng VOICE PROFILE phía trên; câu ngắn, nói tự nhiên như đang quay.
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, nói tự nhiên như đang quay.
 - Hook 1 câu mạnh ở đầu → nội dung → CTA.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.
 
@@ -111,7 +120,7 @@ Chủ đề: ${input.topic}
 ${input.notes ? "Ghi chú: " + input.notes : ""}
 
 YÊU CẦU:
-- Bám đúng VOICE PROFILE phía trên; câu ngắn, xuống dòng nhiều, chỉ dùng số liệu có nguồn.
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều, số liệu thật.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.
 - Sau bài post chính, in đúng dòng "${THREADS_MARK}" rồi viết bản Threads (≤500 ký tự, không hashtag).
 
@@ -146,7 +155,7 @@ export async function generateYouTubePost(input: {
   const task = `NHIỆM VỤ: Viết 1 bài post chia sẻ nội dung video YouTube "${input.title}" dựa trên transcript bên dưới.
 
 YÊU CẦU:
-- Bám đúng VOICE PROFILE phía trên; câu ngắn, xuống dòng nhiều.
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều.
 - Rút ý hay nhất của video, kể lại theo góc nhìn của mình — KHÔNG dịch máy.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.
 - DÒNG CUỐI bài post in đúng: ${input.url}
@@ -167,12 +176,12 @@ export async function generateVideoCaption(script: string): Promise<string> {
   const task = `NHIỆM VỤ: Từ SCRIPT video no-face bên dưới, viết CAPTION đăng Facebook cho video đó.
 
 YÊU CẦU:
-- Bám đúng VOICE PROFILE phía trên; câu ngắn, xuống dòng thoáng.
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng thoáng.
 - DÒNG ĐẦU = tiêu đề ngắn giật (1 câu, không hashtag).
 - Thân bài: hook + tóm tắt giá trị video, vài dòng.
 - KHÔNG intro form "Không phải X...", KHÔNG kết bằng câu hỏi engagement-bait.
 - KHÔNG dùng dấu gạch ngang dài, KHÔNG dùng emoji.
-- Kết bằng CTA phù hợp với BUSINESS CONTEXT phía trên.
+- Kết bằng câu CTA: "Theo dõi Contentta để cập nhật tin AI mỗi ngày."
 - DÒNG CUỐI: tối đa 5 hashtag ngắn, cách nhau bằng khoảng trắng.
 
 Chỉ trả về caption. Không dùng tool. Không hỏi lại, không thêm lời dẫn.
@@ -195,7 +204,7 @@ export async function generateSharePost(input: {
   const task = `NHIỆM VỤ: Viết 1 bài post chia sẻ kiến thức (lead magnet) từ thông tin nguồn bên dưới.
 
 YÊU CẦU:
-- Bám đúng VOICE PROFILE phía trên; câu ngắn, xuống dòng nhiều.
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.${ctaLine}
 - Sau bài post chính, in đúng dòng "${THREADS_MARK}" rồi viết bản Threads (≤500 ký tự, không hashtag).
 

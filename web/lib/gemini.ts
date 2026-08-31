@@ -1,7 +1,7 @@
 import "./env";
 import fs from "node:fs/promises";
 
-// Gen ảnh 1080x1080 bằng Gemini (đọc GEMINI_API_KEY từ .env ở repo root).
+// Gen ảnh 1080x1080 bằng Gemini (tái dùng GEMINI_API_KEY trong app/.env).
 const MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-3-pro-image-preview";
 
 export function isConfigured(): boolean {

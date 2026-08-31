@@ -27,8 +27,7 @@ const STATUS_OPTIONS = [
 
 const DEFAULT_PLATFORM_OPTIONS = [
   { value: "facebook", label: "Facebook" },
-  { value: "instagram", label: "Instagram 1" },
-  { value: "instagram2", label: "Instagram 2" },
+  { value: "instagram", label: "Instagram" },
   { value: "threads", label: "Threads" },
   { value: "linkedin", label: "LinkedIn" },
   { value: "tiktok", label: "TikTok" },

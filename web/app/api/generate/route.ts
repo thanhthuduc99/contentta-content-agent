@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
         ? "youtube"
         : input.type === "short"
         ? "facebook;instagram;tiktok;youtube"
-        : "facebook;linkedin";
+        : "facebook;linkedin;threads";
     const item: ContentItem = {
       id: newId(input.type, input.topic, date),
       type: input.type,

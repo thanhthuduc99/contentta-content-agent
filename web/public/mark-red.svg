@@ -10,11 +10,11 @@
       <feGaussianBlur stdDeviation="10"></feGaussianBlur>
     </filter>
   </defs>
-
+  
   <g transform="translate(200 200)">
     <ellipse cx="0" cy="0" rx="150" ry="58" transform="rotate(-22)" fill="none" stroke="#E10E1F" stroke-width="14"></ellipse>
     <ellipse cx="0" cy="0" rx="150" ry="58" transform="rotate(22)" fill="none" stroke="#E10E1F" stroke-width="14" opacity="0.6"></ellipse>
     <circle cx="0" cy="0" r="42" fill="#E10E1F"></circle>
-
+    
   </g>
 </svg>

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       id: newId("post", title, date),
       type: "post",
       content_type: "chia-se-kien-thuc",
-      platform: "threads",
+      platform: "facebook;linkedin;threads",
       date,
       topic: title,
       status: "draft",

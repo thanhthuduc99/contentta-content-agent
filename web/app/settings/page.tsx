@@ -56,12 +56,6 @@ export default function SettingsPage() {
 
   const rows: Row[] = [
     {
-      name: "Blotato",
-      desc: "Đăng bài",
-      configured: null,
-      hint: "Key đặt ở .env tại repo root (BLOTATO_API_KEY).",
-    },
-    {
       name: "Zernio",
       desc: "Inbox / analytics / campaigns",
       configured: zernioOk,

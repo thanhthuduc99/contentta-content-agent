@@ -116,7 +116,7 @@ export default function ResearchPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink">Research</h1>
         <p className="text-sm text-muted mt-0.5">
-          Dán link YouTube / GitHub / bài viết (hoặc nội dung) → tóm tắt + thu thập thêm nguồn qua WebSearch. Báo cáo lưu trong research/ và được mirror sang Obsidian nếu bạn đã cấu hình.
+          Dán link YouTube / GitHub / bài viết (hoặc nội dung) → tóm tắt + thu thập thêm nguồn qua WebSearch. Báo cáo daily tự chạy mỗi sáng, lưu vào research/ và hiện ở đây.
         </p>
       </div>
 

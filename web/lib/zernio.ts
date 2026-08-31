@@ -32,7 +32,7 @@ export async function zfetchWith<T = unknown>(
   key: string,
   method: string,
   path: string,
-  opts: { query?: Query; body?: unknown } = {}
+  opts: { query?: Query; body?: unknown; timeoutMs?: number } = {}
 ): Promise<T> {
   const base = baseUrl();
   if (!key) throw new Error("ZERNIO_API_KEY chưa cấu hình (đặt ở root .env)");
@@ -40,14 +40,25 @@ export async function zfetchWith<T = unknown>(
   for (const [k, v] of Object.entries(opts.query || {})) {
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, String(v));
   }
-  const r = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
+  // Không có timeout thì Zernio treo là request Next treo theo, UI kẹt nút vô hạn.
+  const timeoutMs = opts.timeoutMs ?? 120_000;
+  let r: Response;
+  try {
+    r = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    if ((e as Error).name === "TimeoutError") {
+      throw new Error(`Zernio ${method} ${path} quá ${Math.round(timeoutMs / 1000)}s không trả lời`);
+    }
+    throw new Error(`Zernio ${method} ${path} lỗi kết nối: ${(e as Error).message}`);
+  }
   const text = await r.text();
   let json: unknown = null;
   try {
@@ -148,6 +159,18 @@ export async function keyForAccount(accountId: string): Promise<string | undefin
 
 export async function accountsOfPlatform(platform: string): Promise<MappedAccount[]> {
   return (await allAccounts()).filter((a) => a.platform === platform);
+}
+
+// Resolve accountId → account (publish chọn theo account, không gộp theo platform nữa).
+export async function accountsById(ids: string[]): Promise<MappedAccount[]> {
+  const want = new Set(ids);
+  let all = await allAccounts();
+  // Account vừa kết nối chưa vào cache 5 phút → refetch trước khi báo không tìm thấy.
+  if (ids.some((id) => !all.some((a) => a.accountId === id))) {
+    all = await listAccountsAll();
+    _accKeyCache = { at: Date.now(), accs: all };
+  }
+  return all.filter((a) => want.has(a.accountId));
 }
 
 // ---------- Lấy playlist YouTube (cho tab Đăng lại + Daily news) ----------

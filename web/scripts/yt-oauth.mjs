@@ -1,5 +1,5 @@
 // One-time YouTube OAuth consent. Chạy: node scripts/yt-oauth.mjs
-// Lấy refresh_token rồi ghi vào .env ở repo root (YOUTUBE_OAUTH_REFRESH_TOKEN).
+// Lấy refresh_token rồi ghi vào app/.env (YOUTUBE_OAUTH_REFRESH_TOKEN).
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { exec } from "node:child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const ENV_PATH = path.resolve(__dirname, "../../.env");
+const ENV_PATH = path.resolve(__dirname, "../../app/.env");
 const PORT = 53682;
 const REDIRECT = `http://localhost:${PORT}`;
 const SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
@@ -32,7 +32,7 @@ const env = readEnv();
 const CLIENT_ID = env.YOUTUBE_OAUTH_CLIENT_ID;
 const CLIENT_SECRET = env.YOUTUBE_OAUTH_CLIENT_SECRET;
 if (!CLIENT_ID || !CLIENT_SECRET) {
-  console.error("Thiếu YOUTUBE_OAUTH_CLIENT_ID / SECRET trong .env ở repo root");
+  console.error("Thiếu YOUTUBE_OAUTH_CLIENT_ID / SECRET trong app/.env");
   process.exit(1);
 }
 
@@ -71,7 +71,7 @@ const server = http.createServer(async (req, res) => {
     setEnv("YOUTUBE_OAUTH_REFRESH_TOKEN", d.refresh_token);
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end("<h2>Xong! Đã lưu YouTube refresh token. Đóng tab này, restart app là YouTube analytics chạy.</h2>");
-    console.log("OK — refresh_token đã ghi vào .env ở repo root. Restart app (8502) để áp dụng.");
+    console.log("OK — refresh_token đã ghi vào app/.env. Restart app (8502) để áp dụng.");
     server.close(); setTimeout(() => process.exit(0), 300);
   } catch (e) {
     res.writeHead(500); res.end(String(e)); server.close(); process.exit(1);

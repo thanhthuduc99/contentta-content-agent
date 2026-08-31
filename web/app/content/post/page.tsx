@@ -6,6 +6,7 @@ import CreateFlow from "@/components/create/create-flow";
 const PLATFORMS = [
   { value: "facebook", label: "Facebook" },
   { value: "linkedin", label: "LinkedIn" },
+  { value: "threads", label: "Threads" },
 ];
 
 export default function PostTypePage() {
@@ -17,7 +18,7 @@ export default function PostTypePage() {
       <PostsBrowser
         fixedType="post"
         title="Post"
-        subtitle="Bài viết text + ảnh, đăng Facebook + LinkedIn (qua Zernio)"
+        subtitle="Bài viết text + ảnh hoặc video ngắn, đăng Facebook + LinkedIn + Threads (qua Zernio)"
         platformOptions={PLATFORMS}
         reloadKey={reloadKey}
         actions={

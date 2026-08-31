@@ -14,6 +14,7 @@ export type ContentItem = {
   type: string; // youtube | short | post
   content_type?: string; // nhan-tai-lieu | chia-se-kien-thuc
   platform?: string;
+  accounts?: string; // accountId Zernio đã chọn đăng, nối bằng ';'
   date?: string; // ngày tạo
   topic?: string;
   status?: string; // draft | doing | done (kanban)
@@ -26,6 +27,7 @@ export type ContentItem = {
   edit_state?: string; // "editing" (đã gửi edit-agent) | "ready" (final.mp4 về, chờ duyệt)
   source_url?: string; // link YouTube/GitHub gốc của post sinh tự động
   cta_keyword?: string; // keyword CTA đã viết vào bài → prefill box Comment to DM lúc đăng
+  first_comment?: string; // tự comment vào bài ngay sau khi đăng (chỗ để link)
   body: string;
 };
 
@@ -101,6 +103,7 @@ function parse(file: string, raw: string): ContentItem {
     type: normType(data.type, file),
     content_type: data.content_type as string | undefined,
     platform: data.platform as string | undefined,
+    accounts: data.accounts as string | undefined,
     date: fmtDate(data.date),
     topic: data.topic as string | undefined,
     status: normStatus(data.status, posted),
@@ -113,6 +116,7 @@ function parse(file: string, raw: string): ContentItem {
     edit_state: data.edit_state as string | undefined,
     source_url: data.source_url as string | undefined,
     cta_keyword: data.cta_keyword as string | undefined,
+    first_comment: data.first_comment as string | undefined,
     body: content.trim(),
   };
 }
@@ -141,6 +145,7 @@ function toFrontmatter(item: ContentItem): string {
   const fm: Record<string, unknown> = { type: item.type };
   if (item.content_type) fm.content_type = item.content_type;
   if (item.platform) fm.platform = item.platform;
+  if (item.accounts) fm.accounts = item.accounts;
   if (item.date) fm.date = item.date;
   if (item.topic) fm.topic = item.topic;
   fm.status = item.status || "draft";
@@ -153,6 +158,7 @@ function toFrontmatter(item: ContentItem): string {
   if (item.edit_state) fm.edit_state = item.edit_state;
   if (item.source_url) fm.source_url = item.source_url;
   if (item.cta_keyword) fm.cta_keyword = item.cta_keyword;
+  if (item.first_comment) fm.first_comment = item.first_comment;
   return matter.stringify(`\n${item.body}\n`, fm);
 }
 

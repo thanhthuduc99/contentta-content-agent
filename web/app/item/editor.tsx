@@ -2,12 +2,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Markdown from "@/components/markdown";
+import { splitThreads } from "@/lib/threads-chain";
+import { postJson } from "@/lib/post-json";
+import { DEFAULT_COMMENT_REPLY, DEFAULT_DM_MESSAGE } from "@/lib/comment-automation-defaults";
+import { PUB_PLATFORMS, accountLabel, slotById, useAccounts } from "@/lib/use-accounts";
 
 type Item = {
   id: string;
   type: string;
   content_type?: string;
   platform?: string;
+  accounts?: string;
   topic?: string;
   date?: string;
   status?: string;
@@ -20,24 +25,28 @@ type Item = {
   edit_state?: string;
   source_url?: string;
   cta_keyword?: string;
+  first_comment?: string;
   body: string;
 };
 
 // Platform gửi được DM riêng (TikTok/YouTube/LinkedIn không có API này).
 const DM_PLATFORMS = ["facebook", "instagram"];
 
-const PLATFORMS: { key: string; label: string; kinds: ("text" | "video")[] }[] = [
-  { key: "facebook", label: "Facebook", kinds: ["text", "video"] },
-  { key: "linkedin", label: "LinkedIn", kinds: ["text", "video"] },
-  { key: "instagram", label: "Instagram", kinds: ["video"] },
-  { key: "tiktok", label: "TikTok", kinds: ["video"] },
-  { key: "youtube", label: "YouTube", kinds: ["video"] },
-];
+const PLATFORMS = PUB_PLATFORMS;
 
 const VIDEO_EXT = [".mp4", ".mov", ".webm", ".mkv"];
 const isVideo = (f: string) => VIDEO_EXT.some((e) => f.toLowerCase().endsWith(e));
 
-const PLAT_KEYS = ["facebook", "linkedin", "instagram", "tiktok", "youtube"];
+// Key trong result do server đặt: "instagram" cho account đầu, "instagram2" cho account
+// thứ hai. Danh sách cứng không còn đủ, phải đọc thẳng key của object.
+function slotsOf(r: unknown): string[] {
+  if (!r || typeof r !== "object") return [];
+  const o = r as Record<string, unknown>;
+  return Object.keys(o).filter((k) => {
+    const v = o[k];
+    return k !== "status" && !!v && typeof v === "object" && typeof (v as PlatResult).status === "string";
+  });
+}
 
 const EDIT_STATE_LABEL: Record<string, string> = { editing: "Đang edit", ready: "Chờ duyệt" };
 
@@ -61,44 +70,115 @@ const statusChipCls = (s?: string) =>
     ? "!bg-red-50 !text-red-700 !border-red-200"
     : "!bg-gray-50 !text-gray-600 !border-gray-200";
 
-type PlatResult = { status?: string; reason?: string; platformPostId?: string; [k: string]: unknown };
+// Platform comment tự động được (Threads thì câu comment thành mắt xích cuối chuỗi).
+const COMMENTABLE = ["facebook", "instagram", "linkedin", "youtube", "threads"];
+
+type PlatResult = {
+  status?: string;
+  account?: string; // tên account Zernio đã đăng (2 Instagram thì phải có tên mới phân biệt được)
+  reason?: string;
+  platformPostId?: string;
+  zernioPostId?: string;
+  comment?: { status?: string; reason?: string };
+  [k: string]: unknown;
+};
 
 function hasFailure(r: unknown): boolean {
   if (!r || typeof r !== "object") return false;
   const o = r as Record<string, PlatResult | string>;
   if (o.error) return true;
   if (o.status === "failed") return true;
-  return PLAT_KEYS.some((k) => (o[k] as PlatResult)?.status === "failed");
+  return slotsOf(r).some((k) => (o[k] as PlatResult)?.status === "failed");
 }
 
-// Success → tag xanh per-platform (giống Blotato). JSON chỉ hiện khi có lỗi.
+function hasPendingPublication(r: unknown): boolean {
+  if (!r || typeof r !== "object") return false;
+  const o = r as Record<string, PlatResult | string>;
+  return slotsOf(r).some((k) => (o[k] as PlatResult)?.status === "pending");
+}
+
+function successfulPlatforms(r: unknown): string[] {
+  if (!r || typeof r !== "object") return [];
+  const o = r as Record<string, PlatResult | string>;
+  return slotsOf(r).filter((k) => (o[k] as PlatResult)?.status === "ok");
+}
+
+function platformIssues(r: unknown): { platform: string; status: string; reason: string }[] {
+  if (!r || typeof r !== "object") return [];
+  const o = r as Record<string, PlatResult | string>;
+  return slotsOf(r).flatMap((platform) => {
+    const entry = o[platform] as PlatResult | undefined;
+    if (!entry || entry.status === "ok") return [];
+    return [{
+      platform,
+      status: entry.status || "failed",
+      reason:
+        entry.reason ||
+        (entry.status === "pending" ? "Zernio đang xử lý" : "Zernio không xác nhận đã đăng"),
+    }];
+  });
+}
+
+// Tóm tắt comment tự động để ghép vào msg. Zernio comment giúp nên chỉ biết là đã gửi kèm,
+// muốn chắc thì mở bài ra xem.
+function commentSummary(r: unknown): string {
+  const o = (r || {}) as Record<string, PlatResult | undefined>;
+  const sent = slotsOf(r).filter((k) => o[k]?.comment?.status === "sent");
+  const skipped = slotsOf(r).filter((k) => o[k]?.comment && o[k]?.comment?.status !== "sent");
+  const parts: string[] = [];
+  if (sent.length) parts.push(`Đã gửi kèm comment cho ${sent.join(", ")}`);
+  if (skipped.length) parts.push(`Không comment ${skipped.join(", ")}`);
+  return parts.length ? ` ${parts.join(". ")}.` : "";
+}
+
+// Success → tag xanh theo từng account. JSON chỉ hiện khi có lỗi.
 function ResultView({ r }: { r: unknown }) {
   if (r == null || typeof r !== "object") return null;
   const o = r as Record<string, PlatResult | string>;
-  const entries = PLAT_KEYS.filter((k) => o[k]).map((k) => ({ k, ...(o[k] as PlatResult) }));
+  const entries = slotsOf(r).map((k) => ({ k, ...(o[k] as PlatResult) }));
   const topError = o.error || (o.status === "failed" ? (o as PlatResult).reason || "lỗi" : null);
   const failed = hasFailure(r);
+  const issues = platformIssues(r);
   return (
     <div className="mt-4 grid gap-2">
       {entries.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {entries.map((e) => {
             const ok = e.status === "ok";
+            const pending = e.status === "pending";
             const skipped = e.status === "skipped";
             const cls = ok
               ? "!bg-green-50 !text-green-700 !border-green-200"
-              : skipped
+              : pending || skipped
               ? "!bg-amber-50 !text-amber-700 !border-amber-200"
               : "!bg-red-50 !text-red-700 !border-red-200";
             return (
               <span key={e.k} className={`chip ${cls}`} title={e.reason || ""}>
-                {e.k} · {ok ? "đã gửi" : skipped ? "bỏ qua" : "lỗi"}
+                {e.account ? `${e.k} · ${e.account}` : e.k} ·{" "}
+                {ok ? "đã đăng" : pending ? "đang xử lý" : skipped ? "bỏ qua" : "lỗi"}
+                {e.comment && (
+                  <span className="opacity-70 ml-1" title={e.comment.reason || ""}>
+                    · {e.comment.status === "sent" ? "kèm comment" : "không comment"}
+                  </span>
+                )}
               </span>
             );
           })}
         </div>
       )}
       {typeof topError === "string" && <p className="text-brand text-sm">{topError}</p>}
+      {issues.length > 0 && (
+        <div className="grid gap-1 text-sm">
+          {issues.map((issue) => (
+            <p
+              key={issue.platform}
+              className={issue.status === "pending" ? "text-amber-700" : "text-brand"}
+            >
+              {issue.platform}: {issue.reason}
+            </p>
+          ))}
+        </div>
+      )}
       {failed && (
         <pre className="text-xs bg-canvas border border-line rounded-lg p-3 overflow-auto max-h-60">
           {JSON.stringify(r, null, 2)}
@@ -127,18 +207,21 @@ export default function ItemEditor({ id }: { id: string }) {
   const [status, setStatus] = useState("draft");
   const [publishAt, setPublishAt] = useState(""); // datetime-local value
   const [files, setFiles] = useState<string[]>([]);
-  const [platforms, setPlatforms] = useState<string[]>([]);
+  const [selected, setSelected] = useState<string[]>([]); // accountId đã tick
+  const { accounts, loading: accLoading, err: accErr } = useAccounts();
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
   const [result, setResult] = useState<unknown>(null);
   const [dragOver, setDragOver] = useState(false);
   const [previewMode, setPreviewMode] = useState(true); // script youtube/short: mặc định Xem trước
+  const [firstComment, setFirstComment] = useState(""); // tự comment vào bài sau khi đăng
   const [c2dOn, setC2dOn] = useState(false); // short: bật comment-to-DM khi đăng
   const [c2dKeyword, setC2dKeyword] = useState("");
   const [c2dMessage, setC2dMessage] = useState("");
   const [playlists, setPlaylists] = useState<{ id: string; title: string; privacy?: string }[]>([]);
   const [playlistId, setPlaylistId] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
+  const presetDone = useRef(false);
   const router = useRouter();
 
   // Quay lại trang Posts giữ nguyên view + filter (URL trước đó). Fallback "/" nếu mở trực tiếp.
@@ -190,29 +273,9 @@ export default function ItemEditor({ id }: { id: string }) {
           setThreads(it.threads || "");
           setPubCaption(it.publish_caption || "");
           setC2dKeyword(it.cta_keyword || "");
+          setFirstComment(it.first_comment || "");
           setStatus(it.status || "draft");
           setPublishAt(isoToLocalInput(it.publish_at));
-          // Item import từ tab Đăng lại đã ghi sẵn đích dự kiến vào frontmatter platform.
-          // Lọc theo platformOptions đúng loại item (không dùng PLAT_KEYS thô): item youtube
-          // (Long) cũ có sẵn platform="youtube" từ trước (đánh dấu cũ, không phải đích đăng —
-          // Long chưa từng đăng được platform nào qua app), giữ nguyên PLAT_KEYS sẽ preset nhầm
-          // "youtube" làm platform publish trong khi platformOptions của Long không có chip đó.
-          const allowedKeys = PLATFORMS.filter((p) =>
-            p.kinds.includes(it.type === "short" ? "video" : "text")
-          ).map((p) => p.key);
-          const preset = (it.platform || "")
-            .split(";")
-            .map((s) => s.trim())
-            .filter((p) => allowedKeys.includes(p));
-          setPlatforms(
-            preset.length
-              ? preset
-              : it.type === "short"
-              ? ["facebook", "instagram", "tiktok", "youtube"]
-              : it.type === "post" || it.type === "youtube"
-              ? ["facebook", "linkedin"]
-              : []
-          );
         }
       });
     loadMedia();
@@ -221,6 +284,44 @@ export default function ItemEditor({ id }: { id: string }) {
       .then((d) => setPlaylists(d.playlists || []))
       .catch(() => setPlaylists([]));
   }, [id, loadMedia]);
+
+  // Tick sẵn chip: ưu tiên accountId đã lưu (frontmatter accounts), rồi tới platform cũ (map về
+  // account đầu của platform đó), cuối cùng là mặc định theo loại bài. Phải đợi accounts về
+  // nên tách khỏi effect load item. Bài youtube (Long) chưa từng đăng qua app nên platform
+  // trong frontmatter là đánh dấu cũ, lọc theo kinds để không preset nhầm.
+  useEffect(() => {
+    if (presetDone.current || !item || !accounts.length) return;
+    presetDone.current = true;
+    const kind = item.type === "short" ? "video" : "text";
+    const allowed = accounts.filter((a) =>
+      PLATFORMS.find((p) => p.key === a.platform)?.kinds.includes(kind)
+    );
+    const savedIds = (item.accounts || "").split(";").map((x) => x.trim()).filter(Boolean);
+    const byId = allowed.filter((a) => savedIds.includes(a.id));
+    if (byId.length) {
+      setSelected(byId.map((a) => a.id));
+      return;
+    }
+    // Bài cũ chỉ có tên platform: lấy đúng account đầu tiên của mỗi platform đã ghi, không
+    // tự đánh dấu thêm account mà bài đó chưa từng đăng.
+    const savedPlats = (item.platform || "").split(";").map((x) => x.trim()).filter(Boolean);
+    if (savedPlats.some((x) => allowed.some((a) => a.platform === x))) {
+      setSelected(
+        savedPlats
+          .map((x) => allowed.find((a) => a.platform === x)?.id)
+          .filter((x): x is string => !!x)
+      );
+      return;
+    }
+    // Bài mới: tick sẵn MỌI account của các platform mặc định theo loại bài.
+    const defaults =
+      item.type === "short"
+        ? ["facebook", "instagram", "tiktok", "youtube"]
+        : item.type === "post" || item.type === "youtube"
+        ? ["facebook", "linkedin"]
+        : [];
+    setSelected(allowed.filter((a) => defaults.includes(a.platform)).map((a) => a.id));
+  }, [item, accounts]);
 
   // Dán ảnh (Ctrl+V) ở bất kỳ đâu trong trang → upload (chỉ xử lý khi clipboard có file).
   useEffect(() => {
@@ -252,6 +353,18 @@ export default function ItemEditor({ id }: { id: string }) {
   const platformOptions = PLATFORMS.filter((p) =>
     p.kinds.includes(isShort ? "video" : "text")
   );
+  const accountOptions = accounts.filter((a) => platformOptions.some((p) => p.key === a.platform));
+  const accById = new Map(accounts.map((a) => [a.id, a]));
+  // Nhiều chỗ bên dưới chỉ cần biết đang tick những nền tảng nào (threads, youtube, comment…).
+  const platforms = [
+    ...new Set(selected.map((id) => accById.get(id)?.platform).filter((x): x is string => !!x)),
+  ];
+  const captionText = isShort || isYoutube ? pubCaption : body;
+  // Preview chuỗi Threads — phải khớp đúng logic server trong lib/zernio-publish.ts.
+  const threadSource = threads.trim() || captionText;
+  const threadParts = platforms.includes("threads")
+    ? [...splitThreads(threadSource), ...splitThreads(firstComment)]
+    : [];
 
   async function patch(partial: Record<string, unknown>) {
     await fetch("/api/item", {
@@ -285,12 +398,13 @@ export default function ItemEditor({ id }: { id: string }) {
         body,
         threads,
         publish_caption: pubCaption,
+        first_comment: firstComment,
         status,
         publish_at: localInputToIso(publishAt),
       }),
     });
     setBusy("");
-    setMsg(r.ok ? "Đã lưu vào content-agent." : "Lưu lỗi.");
+    setMsg(r.ok ? "Đã lưu." : "Lưu lỗi.");
   }
 
   async function genImage() {
@@ -320,21 +434,34 @@ export default function ItemEditor({ id }: { id: string }) {
   // Tạo rule Comment-to-DM sau khi đăng THÀNH CÔNG. Trả về đoạn text ghép vào msg.
   // Rule chỉ áp đúng bài vừa đăng (platformPostId) — không bao giờ áp mọi post.
   async function createC2dRule(result: unknown, scheduledTime?: string): Promise<string> {
-    if (!c2dOn || !c2dKeyword.trim() || !c2dMessage.trim()) return "";
-    const dmPlats = platforms.filter((p) => DM_PLATFORMS.includes(p));
-    if (!dmPlats.length) {
+    if (!c2dOn || !c2dKeyword.trim()) return "";
+    const dmAccounts = selected.filter((id) => {
+      const p = accById.get(id)?.platform;
+      return !!p && DM_PLATFORMS.includes(p);
+    });
+    if (!dmAccounts.length) {
       return " Chưa tạo rule Comment to DM: cần tick Facebook hoặc Instagram.";
     }
     if (scheduledTime) {
       return " Chưa tạo rule Comment to DM: bài hẹn lịch chưa có post ID. Sau khi bài lên, vào tab Comment - DM tạo tay.";
     }
     const o = (result || {}) as Record<string, PlatResult>;
-    const postIds: Record<string, string> = {};
-    for (const p of dmPlats) {
-      const id = o[p]?.platformPostId;
-      if (id) postIds[p] = String(id);
+    // Mỗi account một rule riêng (2 Instagram = 2 bài khác nhau), key là slot server trả về.
+    const slots = slotById(accounts, selected);
+    const targets: Record<string, { accountId: string; postId: string; platformPostId?: string; postTitle?: string }> = {};
+    for (const accountId of dmAccounts) {
+      const slot = slots[accountId];
+      const postId = slot ? o[slot]?.zernioPostId : undefined;
+      if (postId) {
+        targets[slot] = {
+          accountId,
+          postId: String(postId),
+          platformPostId: o[slot]?.platformPostId ? String(o[slot].platformPostId) : undefined,
+          postTitle: captionText.split("\n", 1)[0]?.trim().slice(0, 160),
+        };
+      }
     }
-    if (!Object.keys(postIds).length) {
+    if (!Object.keys(targets).length) {
       return " Chưa tạo rule Comment to DM: Zernio không trả post ID. Vào tab Comment - DM tạo tay.";
     }
     try {
@@ -343,21 +470,22 @@ export default function ItemEditor({ id }: { id: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keyword: c2dKeyword.trim(),
-          message: c2dMessage,
-          postIds,
-          platforms: Object.keys(postIds),
+          message: c2dMessage.trim() || DEFAULT_DM_MESSAGE,
+          commentReply: DEFAULT_COMMENT_REPLY,
+          targets,
         }),
       });
       const cd = await cr.json();
       if (!cr.ok) return ` Rule Comment to DM lỗi: ${cd.error || "không rõ"}.`;
-      return ` + ${cd.created || 0} rule Comment to DM (chỉ bài này).`;
+      const extra = Array.isArray(cd.errors) && cd.errors.length ? ` ${cd.errors.join(" ")}` : "";
+      return ` + ${cd.created || 0} rule Comment to DM native (chỉ bài này).${extra}`;
     } catch (e) {
       return ` Rule Comment to DM lỗi: ${(e as Error).message}.`;
     }
   }
 
   async function publish() {
-    const caption = isShort || isYoutube ? pubCaption : body;
+    const caption = captionText;
     if ((isShort || isYoutube) && !pubCaption.trim()) {
       setMsg("Cần điền Caption đăng trước khi đăng.");
       return;
@@ -366,47 +494,76 @@ export default function ItemEditor({ id }: { id: string }) {
     setMsg("");
     setResult(null);
     const scheduledTime = localInputToIso(publishAt) || undefined;
-    const r = await fetch("/api/publish", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const { ok, data } = await postJson("/api/publish", {
         id,
         files,
-        platforms,
+        accountIds: selected,
         scheduledTime,
         caption,
         playlistId: platforms.includes("youtube") ? playlistId : "",
-      }),
-    });
-    const d = await r.json();
-    setResult(d.result || d);
-    if (r.ok && !hasFailure(d.result || d)) {
-      await fetch("/api/mark-posted", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, scheduledTime }),
+        threadsCaption: platforms.includes("threads") ? threads : "",
+        firstComment,
       });
-      // Ghi lại đúng platform đã đăng (có thể nhiều) để PostsTable/Card/Calendar + filter không hiển thị sai.
-      const publishedPlatform = platforms.join(";");
-      // Đăng ngay -> set publish_at = giờ đăng để LÊN CALENDAR (scheduled thì đã có giờ).
-      const whenIso = scheduledTime || new Date().toISOString();
-      await patch({ platform: publishedPlatform, publish_at: whenIso });
-      const newStatus = scheduledTime ? "scheduled" : "published";
-      setStatus(newStatus);
-      setPublishAt(isoToLocalInput(whenIso));
-      setItem((it) =>
-        it ? { ...it, status: newStatus, posted: true, platform: publishedPlatform, publish_at: whenIso } : it
-      );
-      setMsg(
-        (scheduledTime ? "Đã lên lịch + đánh dấu." : "Đã gửi đăng + đánh dấu.") +
-          (await createC2dRule(d.result || d, scheduledTime))
-      );
-    } else if (r.ok) {
-      setMsg("Đăng có lỗi — xem chi tiết bên dưới.");
-    } else {
-      setMsg(d.error || "Đăng lỗi.");
+      const res = data.result || data;
+      setResult(res);
+      const failed = hasFailure(res);
+      const pending = hasPendingPublication(res);
+      if (ok && !failed && !(pending && !scheduledTime)) {
+        await fetch("/api/mark-posted", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id, scheduledTime }),
+        });
+        // Ghi lại đúng platform đã đăng (có thể nhiều) để PostsTable/Card/Calendar + filter không hiển thị sai.
+        const publishedPlatform = platforms.join(";");
+        const publishedAccounts = selected.join(";");
+        // Đăng ngay -> set publish_at = giờ đăng để LÊN CALENDAR (scheduled thì đã có giờ).
+        const whenIso = scheduledTime || new Date().toISOString();
+        await patch({
+          platform: publishedPlatform,
+          accounts: publishedAccounts,
+          publish_at: whenIso,
+          first_comment: firstComment,
+        });
+        const newStatus = scheduledTime ? "scheduled" : "published";
+        setStatus(newStatus);
+        setPublishAt(isoToLocalInput(whenIso));
+        setItem((it) =>
+          it
+            ? {
+                ...it,
+                status: newStatus,
+                posted: true,
+                platform: publishedPlatform,
+                accounts: publishedAccounts,
+                publish_at: whenIso,
+              }
+            : it
+        );
+        setMsg(
+          (scheduledTime ? "Đã lên lịch + đánh dấu." : "Đã gửi đăng + đánh dấu.") +
+            commentSummary(res) +
+            (await createC2dRule(res, scheduledTime))
+        );
+      } else if (ok && pending) {
+        setMsg("Zernio đang xử lý đăng. Chưa đánh dấu đã đăng; xem trạng thái từng nền tảng bên dưới.");
+      } else if (ok) {
+        const succeeded = successfulPlatforms(res);
+        const issues = platformIssues(res);
+        const sent = succeeded.length ? `Đã đăng: ${succeeded.join(", ")}. ` : "";
+        const errors = issues.length
+          ? `Lỗi: ${issues.map((issue) => `${issue.platform}: ${issue.reason}`).join(" · ")}. `
+          : "";
+        setMsg(`${sent}${errors}Chưa đánh dấu đã đăng; nếu thử lại, chỉ chọn nền tảng bị lỗi.`);
+      } else {
+        setMsg(String(data.error || "Đăng lỗi."));
+      }
+    } catch (e) {
+      setMsg(`Đăng lỗi: ${(e as Error).message}`);
+    } finally {
+      setBusy("");
     }
-    setBusy("");
   }
 
   async function markPostedYoutube() {
@@ -422,8 +579,10 @@ export default function ItemEditor({ id }: { id: string }) {
     setMsg("Đã đánh dấu đã đăng.");
   }
 
-  function togglePlatform(k: string) {
-    setPlatforms((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  function toggleAccount(accountId: string) {
+    setSelected((p) =>
+      p.includes(accountId) ? p.filter((x) => x !== accountId) : [...p, accountId]
+    );
   }
 
   return (
@@ -564,6 +723,37 @@ export default function ItemEditor({ id }: { id: string }) {
           </>
         )}
 
+        {platforms.includes("threads") && (
+          <>
+            <div className="flex items-center justify-between mt-4">
+              <label className="label mb-0">Caption Threads</label>
+              <span className="text-xs text-muted">
+                {threadSource.length} ký tự · {threadParts.length || 1} phần
+              </span>
+            </div>
+            <textarea
+              className="textarea"
+              rows={4}
+              value={threads}
+              onChange={(e) => setThreads(e.target.value)}
+              placeholder="Bỏ trống thì lấy nội dung post ở trên. Gõ --- trên 1 dòng riêng để ép ngắt phần."
+            />
+            {threadParts.length > 1 && (
+              <div className="mt-2 grid gap-1">
+                <p className="text-xs text-muted">
+                  Đăng thành {threadParts.length} post nối tiếp, ảnh gắn vào phần 1.
+                  {firstComment.trim() && " Câu comment tự động thành phần cuối."}
+                </p>
+                {threadParts.map((p, i) => (
+                  <p key={i} className="text-xs text-muted truncate">
+                    <b>Phần {i + 1}</b> · {p.length} ký tự · {p.replace(/\s+/g, " ").slice(0, 50)}
+                  </p>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
         <div className="flex items-center gap-3 mt-4">
           <button className="btn btn-ghost" disabled={busy === "save"} onClick={save}>
             {busy === "save" ? "Đang lưu…" : "Lưu"}
@@ -581,7 +771,7 @@ export default function ItemEditor({ id }: { id: string }) {
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">
           <label className="label mb-0">
-            {mediaIsVideo ? "Media (video đã quay)" : "Media (ảnh đơn/nhiều)"}
+            {mediaIsVideo ? "Media (video đã quay)" : "Media (nhiều ảnh, hoặc 1 video ngắn)"}
             {isYoutube && <span className="text-muted font-normal"> · tuỳ chọn</span>}
           </label>
           <div className="flex gap-2">
@@ -603,7 +793,7 @@ export default function ItemEditor({ id }: { id: string }) {
           ref={fileInput}
           type="file"
           multiple
-          accept={mediaIsVideo ? "video/*" : "image/*"}
+          accept={mediaIsVideo ? "video/*" : "image/*,video/*"}
           hidden
           onChange={(e) => uploadFiles(e.target.files)}
         />
@@ -629,7 +819,7 @@ export default function ItemEditor({ id }: { id: string }) {
                 "Đang tải lên…"
               ) : (
                 <>
-                  Kéo-thả {mediaIsVideo ? "video" : "ảnh"} vào đây, dán ảnh{" "}
+                  Kéo-thả {mediaIsVideo ? "video" : "ảnh hoặc video"} vào đây, dán ảnh{" "}
                   <b>(Ctrl+V)</b>, hoặc bấm <b>Upload</b>.
                 </>
               )}
@@ -669,23 +859,37 @@ export default function ItemEditor({ id }: { id: string }) {
             : `Đăng lên (${isShort ? "platform video" : "platform text"})`}
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
-          {platformOptions.map((p) => (
+          {accountOptions.map((a) => (
             <button
-              key={p.key}
-              onClick={() => togglePlatform(p.key)}
-              className={`chip cursor-pointer ${platforms.includes(p.key) ? "!bg-brand !text-white !border-brand" : ""}`}
+              key={a.id}
+              onClick={() => toggleAccount(a.id)}
+              className={`chip cursor-pointer ${selected.includes(a.id) ? "!bg-brand !text-white !border-brand" : ""}`}
             >
-              {p.label}
+              {accountLabel(a)}
               <span className="opacity-60 ml-1">{isShort || isYoutube ? "🎬" : "✎"}</span>
             </button>
           ))}
         </div>
+        {accLoading && <p className="text-xs text-muted mb-2">Đang tải account…</p>}
+        {accErr && <p className="text-sm text-brand mb-2">Không lấy được account Zernio: {accErr}</p>}
+        {!accLoading && !accErr && accountOptions.length === 0 && (
+          <p className="text-sm text-muted mb-2">
+            Chưa kết nối account nào cho loại bài này. Vào Connections để kết nối.
+          </p>
+        )}
 
         {isYoutube && (
           <p className="text-xs text-muted mb-4">
             Giới hạn thời lượng video: Facebook tới 240 phút (4 tiếng), thoải mái cho video dài.
             LinkedIn chỉ tới 10 phút qua API (web cho phép 15 phút), video dài hơn sẽ bị từ chối.
             Cắt bản ngắn riêng nếu muốn đăng LinkedIn.
+          </p>
+        )}
+
+        {isPost && (
+          <p className="text-xs text-muted mb-4">
+            Nhiều ảnh: Facebook và Threads tối đa 10, LinkedIn tối đa 20, dư sẽ bị cắt bớt.
+            Kèm video thì bài chỉ đăng video (ảnh bị bỏ), Threads nhận MP4 H.264 tối đa 5 phút.
           </p>
         )}
 
@@ -713,9 +917,36 @@ export default function ItemEditor({ id }: { id: string }) {
             : "Chưa đặt Ngày đăng thì đăng ngay."}
         </p>
 
+        <div className="rounded-lg border border-line p-3 mb-4 grid gap-2">
+          <label className="label mb-0">Comment tự động sau khi đăng</label>
+          <textarea
+            className="textarea"
+            rows={3}
+            placeholder={"Bỏ trống thì không comment.\nVD: Link tài liệu đây nha: https://…"}
+            value={firstComment}
+            onChange={(e) => setFirstComment(e.target.value)}
+          />
+          <p className="text-xs text-muted">
+            Đăng xong Zernio tự comment câu này vào chính bài vừa đăng, để link nằm dưới comment thay
+            vì trong bài. Bài hẹn lịch cũng chạy. Facebook, Instagram, LinkedIn, YouTube comment
+            thẳng, Threads thì câu này thành phần cuối của chuỗi.
+            {platforms.some((p) => !COMMENTABLE.includes(p)) && (
+              <b> Đang tick {platforms.filter((p) => !COMMENTABLE.includes(p)).join(", ")}, mấy cái này sẽ bỏ qua.</b>
+            )}
+          </p>
+        </div>
+
         <div className="rounded-lg border border-line p-3 mb-4 grid gap-3">
           <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={c2dOn} onChange={(e) => setC2dOn(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={c2dOn}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setC2dOn(checked);
+                if (checked && !c2dMessage.trim()) setC2dMessage(DEFAULT_DM_MESSAGE);
+              }}
+            />
             Bật Comment to DM khi đăng
           </label>
           {c2dOn && (
@@ -734,15 +965,15 @@ export default function ItemEditor({ id }: { id: string }) {
                 <textarea
                   className="textarea"
                   rows={4}
-                  placeholder={"Mình gửi bạn tài liệu nha:\nhttps://…\n\nCó gì cần thêm cứ nhắn mình."}
+                  placeholder={DEFAULT_DM_MESSAGE}
                   value={c2dMessage}
                   onChange={(e) => setC2dMessage(e.target.value)}
                 />
               </div>
               <p className="text-xs text-muted">
-                Ai comment đúng keyword sẽ được reply công khai + like + nhận DM này. Rule tạo sau
+                Ai comment đúng keyword sẽ được reply công khai + nhận DM này. Rule tạo sau
                 khi đăng thành công và <b>chỉ áp đúng bài này</b>. Cần tick Facebook hoặc Instagram
-                (TikTok/YouTube/LinkedIn không gửi DM riêng được).
+                (TikTok/YouTube/LinkedIn không gửi DM riêng được). Like tự động không áp dụng cho rule native.
               </p>
             </>
           )}
@@ -751,13 +982,23 @@ export default function ItemEditor({ id }: { id: string }) {
         <div className="flex items-center gap-3">
           <button
             className="btn btn-primary"
-            disabled={busy === "publish" || platforms.length === 0}
+            disabled={busy === "publish" || selected.length === 0}
             onClick={publish}
           >
             {busy === "publish" ? "Đang đăng…" : publishAt ? "Lên lịch đăng" : "Đăng ngay"}
           </button>
-          {result != null && !hasFailure(result) && msg && (
-            <span className="chip !bg-green-50 !text-green-700 !border-green-200">✓ {msg}</span>
+          {result != null && msg && (
+            <span
+              className={`chip ${
+                hasFailure(result)
+                  ? "!bg-red-50 !text-red-700 !border-red-200"
+                  : hasPendingPublication(result)
+                  ? "!bg-amber-50 !text-amber-700 !border-amber-200"
+                  : "!bg-green-50 !text-green-700 !border-green-200"
+              }`}
+            >
+              {hasFailure(result) ? "!" : hasPendingPublication(result) ? "…" : "✓"} {msg}
+            </span>
           )}
         </div>
 

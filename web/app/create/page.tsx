@@ -269,8 +269,8 @@ export default function CreatePage() {
         </div>
         <p className="text-xs text-muted">
           {mode === "manual"
-            ? "Lưu thẳng nội dung bạn dán vào content-agent, rồi mở editor để đính media và đăng. Nếu đã cấu hình Obsidian, app sẽ mirror tự động."
-            : "Dùng Claude Code trên máy. Kết quả lưu vào content-agent và được mirror sang Obsidian nếu bạn đã cấu hình."}
+            ? "Lưu thẳng nội dung bạn dán vào content/, rồi mở editor để đính media + đăng."
+            : "Dùng subscription Claude Code trên máy, không tốn API. Kết quả lưu vào content/ ngay."}
         </p>
       </div>
 

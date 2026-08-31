@@ -13,14 +13,17 @@ function safe(id: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, files, platforms, scheduledTime, caption, playlistId } =
+    const { id, files, platforms, accountIds, scheduledTime, caption, playlistId, threadsCaption, firstComment } =
       (await req.json()) as {
         id: string;
         files: string[];
-        platforms: Platform[];
+        platforms?: Platform[];
+        accountIds?: string[];
         scheduledTime?: string;
         caption: string;
         playlistId?: string;
+        threadsCaption?: string;
+        firstComment?: string;
       };
 
     if (!caption?.trim()) {
@@ -29,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (playlistId && !/^[A-Za-z0-9_-]{10,64}$/.test(playlistId)) {
       return NextResponse.json({ error: "playlistId không hợp lệ" }, { status: 400 });
     }
+    if (accountIds && (!Array.isArray(accountIds) || accountIds.some((a) => typeof a !== "string"))) {
+      return NextResponse.json({ error: "accountIds phải là mảng string" }, { status: 400 });
+    }
     const dir = path.join(MEDIA_DIR, safe(id));
     const mediaPaths = (files || []).map((f) => path.join(dir, path.basename(f)));
 
@@ -36,8 +42,11 @@ export async function POST(req: NextRequest) {
       mediaPaths,
       caption,
       platforms,
+      accountIds,
       scheduledTime: scheduledTime || undefined,
       youtube: playlistId ? { playlistId } : undefined,
+      threadsCaption,
+      firstComment,
     });
     return NextResponse.json({ result });
   } catch (e) {

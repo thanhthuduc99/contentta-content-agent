@@ -41,8 +41,9 @@ const GRAD = "linear-gradient(105deg, #4A3AE0 0%, #7B6CFF 40%, #FFB39C 95%)";
 const BRAND_PERSON_NAME = (process.env.BRAND_PERSON_NAME || "Tên của bạn").trim();
 const BRAND_NAME = (process.env.BRAND_NAME || "Content Agent").trim();
 const BRAND_DOMAIN = (process.env.BRAND_DOMAIN || "localhost:8502").trim();
-const FACE_LUMEN = path.join(CONTENT_DIR, "_assets", "profile-cutout.png");
-const FACE_OLD = path.join(CONTENT_DIR, "_assets", "profile.png");
+// Ảnh mặt người dùng cho thumbnail, tùy chọn. Không có thì render không chèn mặt.
+const FACE_LUMEN = path.join(CONTENT_DIR, "_assets", "face-cutout-lumen.png");
+const FACE_OLD = path.join(CONTENT_DIR, "_assets", "face-cutout.png");
 const FACE = fs.existsSync(FACE_LUMEN) ? FACE_LUMEN : FACE_OLD;
 
 // ---- VNode helper ----

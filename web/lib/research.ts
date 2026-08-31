@@ -273,20 +273,22 @@ async function githubTrending(days: number): Promise<Repo[]> {
 const DAY_MS = 86400000;
 
 // Actor kaitoeasyapi: $0.00025/tweet, không có phí start.
-// Lưu ý đã test: actor BỎ QUA maxItems (trả ~20) và BỎ QUA since_time → phải lọc 24h + cắt ở đây.
+// Đã test live: actor BỎ QUA các field riêng lẻ (since_time, min_faves, lang, filter:replies) nên
+// queryType Top trả toàn tweet viral cũ, lọc 24h ở đây xong chỉ còn 1-2 cái. Nhét toán tử advanced
+// search thẳng vào twitterContent thì X lọc sẵn: 60/60 item đều trong 24h. maxItems thì actor tôn trọng.
 const X_ACTOR = "kaitoeasyapi~twitter-x-data-tweet-scraper-pay-per-result-cheapest";
+const X_MAX_ITEMS = 60; // ~$0.015/run
+const X_MIN_FAVES = 200;
+const X_KEYWORDS = `(AI agent OR "AI automation" OR LLM OR Claude OR OpenAI OR Gemini)`;
 type Tweet = { id: string; url: string; text: string; likeCount: number; retweetCount: number; viewCount?: number; createdAt: string; author?: { userName?: string } };
 export type XPost = { id: string; url: string; text: string; likes: number; retweets: number; author: string };
 
 async function xHot(seen: Set<string>, take: number): Promise<XPost[]> {
+  const sinceDate = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
   const raw = await runActor<Tweet>(X_ACTOR, {
-    twitterContent: "AI agent OR AI automation OR LLM OR Claude OR OpenAI OR Gemini",
+    twitterContent: `${X_KEYWORDS} min_faves:${X_MIN_FAVES} -filter:replies -filter:retweets lang:en since:${sinceDate}`,
     queryType: "Top",
-    lang: "en",
-    min_faves: 200,
-    "filter:replies": false,
-    since_time: String(Math.floor((Date.now() - DAY_MS) / 1000)),
-    maxItems: 10,
+    maxItems: X_MAX_ITEMS,
   });
   const cutoff = Date.now() - DAY_MS;
   return raw
@@ -469,8 +471,8 @@ export async function runDaily(opts: { force?: boolean } = {}): Promise<{
   }
   newsCand.forEach((p) => seenNews.add(p.url)); // seed hết tin hôm nay → không lặp
 
-  // 1b) X: 3 tweet AI like cao nhất trong 24h
-  const tweets = await xHot(seenTweets, 3);
+  // 1b) X: 8 tweet AI like cao nhất trong 24h
+  const tweets = await xHot(seenTweets, 8);
   if (tweets.length) {
     const list = tweets
       .map((t) => `- [@${t.author}](${t.url}) · ❤️${t.likes} 🔁${t.retweets} — ${t.text.slice(0, 220)}`)

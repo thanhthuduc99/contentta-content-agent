@@ -1,15 +1,14 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { postJson } from "@/lib/post-json";
+import { accountLabel, useAccounts } from "@/lib/use-accounts";
 
 type PubMode = "now" | "schedule" | "draft";
 
-const PLATFORMS = [
-  { key: "facebook", label: "Facebook" },
-  { key: "instagram", label: "Instagram" },
-  { key: "tiktok", label: "TikTok" },
-  { key: "youtube", label: "YouTube" },
-];
+// Đích đăng của short. LinkedIn nhận video nhưng không nằm trong luồng này, muốn đăng
+// LinkedIn thì lưu nháp rồi mở bài ra tick.
+const SHORT_PLATFORMS = ["facebook", "instagram", "tiktok", "youtube"];
 
 function toIsoVN(value: string): string {
   return `${value}:00+07:00`;
@@ -32,46 +31,66 @@ export default function ShortForm({
   const [file, setFile] = useState<File | null>(null);
 
   // upload mode
-  const [platforms, setPlatforms] = useState<string[]>(PLATFORMS.map((p) => p.key));
+  const { accounts, loading: accLoading, err: accErr } = useAccounts();
+  const accountOptions = accounts.filter((a) => SHORT_PLATFORMS.includes(a.platform));
+  const [selected, setSelected] = useState<string[]>([]);
   const [pubMode, setPubMode] = useState<PubMode>("now");
   const [datetime, setDatetime] = useState("");
 
-  function togglePlatform(k: string) {
-    setPlatforms((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  // Mặc định tick hết account video, nhưng phải đợi danh sách account về mới biết có những gì.
+  const preset = useRef(false);
+  useEffect(() => {
+    if (preset.current || !accountOptions.length) return;
+    preset.current = true;
+    setSelected(accountOptions.map((a) => a.id));
+  }, [accountOptions]);
+
+  function toggleAccount(accountId: string) {
+    setSelected((p) =>
+      p.includes(accountId) ? p.filter((x) => x !== accountId) : [...p, accountId]
+    );
   }
 
   async function submitUpload() {
     if (!file) throw new Error("Chọn video đã edit.");
     if (!caption.trim()) throw new Error("Nhập caption đã.");
     if (pubMode === "schedule" && !datetime) throw new Error("Chọn ngày & giờ để lên lịch.");
-    if (pubMode !== "draft" && platforms.length === 0) throw new Error("Chọn ít nhất 1 platform.");
+    if (pubMode !== "draft" && selected.length === 0) throw new Error("Chọn ít nhất 1 account để đăng.");
 
     const topicGuess = caption.trim().split("\n")[0].slice(0, 60) || file.name;
     // Tạo item (body = caption làm tham chiếu, short không cần script)
-    const r = await fetch("/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        type: "short",
-        content_type: "chia-se-kien-thuc",
-        topic: topicGuess,
-        manual: true,
-        body: caption.trim(),
-        publish_caption: caption.trim(),
-      }),
+    const { ok, data } = await postJson("/api/generate", {
+      type: "short",
+      content_type: "chia-se-kien-thuc",
+      topic: topicGuess,
+      manual: true,
+      body: caption.trim(),
+      publish_caption: caption.trim(),
     });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || "Tạo bài lỗi");
-    const id = d.item.id as string;
+    if (!ok) throw new Error(String(data.error || "Tạo bài lỗi"));
+    const id = (data.item as { id: string }).id;
 
-    // Upload video
+    // Upload video. File nặng nên đi riêng bằng FormData, có timeout để không treo nút.
     const fd = new FormData();
     fd.append("id", id);
     fd.append("files", file);
-    const up = await fetch("/api/media", { method: "POST", body: fd });
-    const ud = await up.json();
-    if (!up.ok) throw new Error(ud.error || "Upload video lỗi");
-    const saved: string[] = ud.saved || [];
+    let saved: string[];
+    try {
+      const up = await fetch("/api/media", {
+        method: "POST",
+        body: fd,
+        signal: AbortSignal.timeout(10 * 60_000),
+      });
+      const ud = await up.json();
+      if (!up.ok) throw new Error(ud.error || `HTTP ${up.status}`);
+      saved = ud.saved || [];
+    } catch (e) {
+      const err = e as Error;
+      throw new Error(
+        `Upload video lỗi: ${err.name === "TimeoutError" ? "quá 10 phút không xong" : err.message}`
+      );
+    }
+    if (!saved.length) throw new Error("Upload video lỗi: server không lưu được file nào.");
 
     if (pubMode === "draft") {
       onCreated?.(id);
@@ -82,13 +101,28 @@ export default function ShortForm({
 
     // Đăng ngay / lên lịch
     const scheduledTime = pubMode === "schedule" ? toIsoVN(datetime) : undefined;
-    const pub = await fetch("/api/publish", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, files: saved, platforms, scheduledTime, caption: caption.trim() }),
+    const pub = await postJson("/api/publish", {
+      id,
+      files: saved,
+      accountIds: selected,
+      scheduledTime,
+      caption: caption.trim(),
     });
-    const pd = await pub.json();
-    if (!pub.ok) throw new Error(pd.error || "Đăng lỗi");
+    if (!pub.ok) throw new Error(String(pub.data.error || "Đăng lỗi"));
+    // Zernio báo lỗi theo từng nền tảng trong result, HTTP vẫn 200. Không đọc chỗ này thì
+    // bài fail vẫn bị đánh dấu đã đăng.
+    const res = (pub.data.result || {}) as Record<
+      string,
+      { status?: string; reason?: string; account?: string }
+    >;
+    const failed = Object.keys(res).filter((k) => res[k]?.status === "failed");
+    if (failed.length) {
+      throw new Error(
+        `Đăng lỗi: ${failed
+          .map((k) => `${res[k]?.account || k} (${res[k]?.reason || "không rõ"})`)
+          .join(", ")}. ` + `Video đã lưu vào bài, mở bài ra đăng lại phần còn thiếu.`
+      );
+    }
     await fetch("/api/mark-posted", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,7 +131,11 @@ export default function ShortForm({
     await fetch("/api/item", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, platform: platforms.join(";") }),
+      body: JSON.stringify({
+        id,
+        platform: [...new Set(accountOptions.filter((a) => selected.includes(a.id)).map((a) => a.platform))].join(";"),
+        accounts: selected.join(";"),
+      }),
     });
     onCreated?.(id);
     onClose();
@@ -155,17 +193,22 @@ export default function ShortForm({
       <div>
         <label className="label">Đăng lên</label>
         <div className="flex flex-wrap gap-2">
-          {PLATFORMS.map((p) => (
+          {accountOptions.map((a) => (
             <button
-              key={p.key}
+              key={a.id}
               type="button"
-              onClick={() => togglePlatform(p.key)}
-              className={`chip cursor-pointer ${platforms.includes(p.key) ? "!bg-brand !text-white !border-brand" : ""}`}
+              onClick={() => toggleAccount(a.id)}
+              className={`chip cursor-pointer ${selected.includes(a.id) ? "!bg-brand !text-white !border-brand" : ""}`}
             >
-              {p.label} 🎬
+              {accountLabel(a)} 🎬
             </button>
           ))}
         </div>
+        {accLoading && <p className="text-xs text-muted mt-1">Đang tải account…</p>}
+        {accErr && <p className="text-sm text-brand mt-1">Không lấy được account Zernio: {accErr}</p>}
+        {!accLoading && !accErr && accountOptions.length === 0 && (
+          <p className="text-sm text-muted mt-1">Chưa kết nối account video nào trong Zernio.</p>
+        )}
       </div>
 
       <div>

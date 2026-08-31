@@ -85,6 +85,33 @@ export async function createCommentToDmRules(
   return made;
 }
 
+// Rule reply công khai cho YouTube: comment trúng keyword -> reply + like.
+// YouTube KHÔNG có DM nên message rỗng (handleComment bỏ qua bước DM). YouTube lọc
+// comment chứa link nên commentReply là câu chỉ đường search Google, KHÔNG dán URL.
+export async function createYoutubeSearchReplyRule(opts: {
+  accountId: string;
+  keyword: string;
+  commentReply: string;
+  platformPostId?: string;
+}): Promise<boolean> {
+  const keyword = opts.keyword.trim().toLowerCase();
+  if (!keyword || !opts.commentReply.trim() || !opts.accountId) return false;
+  const rules = await loadRules();
+  rules.push({
+    id: crypto.randomUUID(),
+    accountId: opts.accountId,
+    platform: "youtube",
+    keywords: [keyword],
+    message: "", // YouTube không có API nhắn riêng
+    commentReply: opts.commentReply.trim(),
+    postIds: opts.platformPostId ? [opts.platformPostId] : undefined,
+    react: true,
+    enabled: true,
+  });
+  await saveRules(rules);
+  return true;
+}
+
 function matches(rule: AutoRule, text: string): boolean {
   if (!rule.enabled || !rule.keywords.length) return false;
   const t = text.toLowerCase();

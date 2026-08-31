@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       type: "post",
       // chia-se-kien-thuc → nút "Tạo ảnh carousel (Claude)" đi đường renderSlide (carousel).
       content_type: "chia-se-kien-thuc",
-      platform: "threads",
+      platform: "facebook;linkedin;threads",
       date,
       topic,
       status: "draft",

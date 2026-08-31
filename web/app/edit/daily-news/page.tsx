@@ -1,14 +1,49 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { DEFAULT_COMMENT_REPLY } from "@/lib/comment-automation-defaults";
+import { deriveKeyword, isValidKeyword, KEYWORD_MAX } from "@/lib/daily-news-keyword";
 
-type Status = { runbookPath: string; recentProjects: string[] };
+type JobState = "queued" | "running" | "done" | "failed";
+type Job = {
+  slug: string;
+  topic: string;
+  keyword: string;
+  state: JobState;
+  queuedAt: number;
+  startedAt?: number;
+  endedAt?: number;
+};
+type Status = { jobs: Job[] };
+type AutoDm = { link: string; keyword: string };
 type Build = {
   slug: string;
-  state: "running" | "done" | "failed";
+  state: JobState;
   logTail: string;
   hasVideo: boolean;
   caption: string | null;
+  failReason: string | null;
+  topic: string;
+  keyword: string;
 };
+
+const STATE_LABEL: Record<JobState, string> = {
+  queued: "chờ", running: "đang chạy", done: "xong", failed: "lỗi",
+};
+const STATE_CLASS: Record<JobState, string> = {
+  queued: "text-muted", running: "text-amber-600", done: "text-green-600", failed: "text-red-600",
+};
+
+function jobTitle(j: Job): string {
+  const line = (j.topic || "").trim().split(/\r?\n/)[0];
+  if (!line) return j.slug;
+  return line.length > 64 ? `${line.slice(0, 64)}…` : line;
+}
+
+function elapsed(j: Job): string {
+  if (!j.startedAt) return "";
+  const sec = Math.max(0, Math.round(((j.endedAt || Date.now()) - j.startedAt) / 1000));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+}
 
 const PLATFORMS = ["instagram", "facebook", "youtube", "tiktok"] as const;
 const DAILY_NEWS_PLAYLIST = "ai daily news";
@@ -22,6 +57,9 @@ export default function EditDailyNewsPage() {
   const [build, setBuild] = useState<Build | null>(null);
   const [starting, setStarting] = useState(false);
   const [err, setErr] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [keywordTouched, setKeywordTouched] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
   // publish state
   const [caption, setCaption] = useState("");
@@ -32,11 +70,40 @@ export default function EditDailyNewsPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<string>("");
   const [genningCaption, setGenningCaption] = useState(false);
+
+  // auto comment-to-DM (facebook/instagram): rút link GitHub + keyword từ topic gốc
+  const [autoDm, setAutoDm] = useState<AutoDm | null>(null);
+  const [autoDmEnabled, setAutoDmEnabled] = useState(true);
+  const [autoDmKeyword, setAutoDmKeyword] = useState("");
+  const [autoDmMessage, setAutoDmMessage] = useState("");
+  const [autoDmReply, setAutoDmReply] = useState(DEFAULT_COMMENT_REPLY);
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoCapRef = useRef<string | null>(null);
+  const autoDmRef = useRef<string | null>(null);
+
+  async function loadJobs() {
+    try {
+      const d: Status = await fetch("/api/edit/daily-news").then((r) => r.json());
+      setStatus(d);
+      setJobs(d.jobs || []);
+    } catch {
+      setStatus(null);
+    }
+  }
+
+  // Poll danh sách khi còn job chờ/đang chạy. Mỗi lần GET server cũng tick hàng đợi,
+  // nên job kế tự khởi động kể cả sau khi restart server.
+  const hasActive = jobs.some((j) => j.state === "queued" || j.state === "running");
+  useEffect(() => {
+    if (!hasActive) return;
+    const t = setInterval(loadJobs, 4000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasActive]);
 
   useEffect(() => {
-    fetch("/api/edit/daily-news").then((r) => r.json()).then(setStatus).catch(() => setStatus(null));
+    loadJobs();
     fetch("/api/youtube-playlists")
       .then((r) => r.json())
       .then((d) => {
@@ -55,7 +122,7 @@ export default function EditDailyNewsPage() {
         const b: Build = await fetch(`/api/edit/daily-news?slug=${slug}`).then((r) => r.json());
         setBuild(b);
         if (b.caption && !caption) setCaption(b.caption);
-        if (b.state !== "running" && pollRef.current) {
+        if (b.state !== "running" && b.state !== "queued" && pollRef.current) {
           clearInterval(pollRef.current);
           pollRef.current = null;
         }
@@ -76,18 +143,48 @@ export default function EditDailyNewsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [build?.hasVideo, slug]);
 
+  // Video xong → rút link GitHub + keyword từ topic gốc 1 lần cho slug này (deterministic, không AI).
+  useEffect(() => {
+    if (build?.hasVideo && slug && autoDmRef.current !== slug) {
+      autoDmRef.current = slug;
+      fetch("/api/edit/daily-news", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "autodm", slug }),
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          const found: AutoDm | null = d.autoDm || null;
+          setAutoDm(found);
+          if (found) {
+            setAutoDmKeyword(found.keyword);
+            setAutoDmMessage(`Mình gửi link nha: ${found.link}`);
+          }
+        })
+        .catch(() => setAutoDm(null));
+    }
+  }, [build?.hasVideo, slug]);
+
+  // Bắn job xong KHÔNG đụng panel đang xem: gõ topic kế tiếp được ngay, job cũ vẫn theo dõi được.
   async function startBuild() {
-    setErr(""); setStarting(true); setBuild(null); setPublishResult(""); setCaption("");
+    setErr(""); setStarting(true);
     try {
       const res = await fetch("/api/edit/daily-news", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "build", info }),
+        body: JSON.stringify({ action: "build", info, keyword }),
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error || "Lỗi không rõ"); return; }
-      setSlug(data.slug);
+      setInfo(""); setKeyword(""); setKeywordTouched(false);
+      await loadJobs();
     } catch (e) { setErr((e as Error).message); }
     finally { setStarting(false); }
+  }
+
+  // Keyword hiện TRÊN MÀN HÌNH trong scene CTA nên phải chốt trước khi render.
+  // Prefill từ tên repo, Thanh sửa tay là ngừng ghi đè.
+  function onInfoChange(v: string) {
+    setInfo(v);
+    if (!keywordTouched) setKeyword(deriveKeyword(v));
   }
 
   function togglePlatform(p: string) {
@@ -99,6 +196,7 @@ export default function EditDailyNewsPage() {
     setPublishing(true); setPublishResult("");
     try {
       const scheduledTime = schedule ? new Date(schedule).toISOString() : undefined;
+      const canAutoDm = autoDmEnabled && !!autoDm && (platforms.includes("facebook") || platforms.includes("instagram") || platforms.includes("youtube"));
       const res = await fetch("/api/edit/daily-news", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -108,6 +206,9 @@ export default function EditDailyNewsPage() {
           platforms,
           scheduledTime,
           playlistId: platforms.includes("youtube") ? playlistId : "",
+          autoDm: canAutoDm
+            ? { keyword: autoDmKeyword, link: autoDm!.link, dmMessage: autoDmMessage, commentReply: autoDmReply }
+            : undefined,
         }),
       });
       const data = await res.json();
@@ -135,9 +236,13 @@ export default function EditDailyNewsPage() {
   function openProject(p: string) {
     if (p === slug) return;
     setBuild(null); setCaption(""); setPublishResult(""); setErr("");
+    setAutoDm(null); setAutoDmKeyword(""); setAutoDmMessage(""); setAutoDmReply(DEFAULT_COMMENT_REPLY);
     autoCapRef.current = null;
+    autoDmRef.current = null;
     setSlug(p);
   }
+
+  const keywordBad = !!keyword && !isValidKeyword(keyword);
 
   return (
     <div className="max-w-2xl">
@@ -153,12 +258,30 @@ export default function EditDailyNewsPage() {
           Topic / nội dung nguồn
           <textarea
             className="border border-line rounded-lg px-3 py-2 text-sm min-h-[120px]"
-            value={info} onChange={(e) => setInfo(e.target.value)}
+            value={info} onChange={(e) => onInfoChange(e.target.value)}
             placeholder="Dán thông tin về 1 tool/repo/tin AI... Agent sẽ tự viết script + dựng video."
           />
         </label>
-        <button className="btn btn-primary self-start" disabled={starting || !info.trim()} onClick={startBuild}>
-          {starting ? "Đang khởi động…" : "Tạo video"}
+
+        <label className="text-sm font-medium text-ink flex flex-col gap-1">
+          Keyword comment
+          <input
+            className="border border-line rounded-lg px-3 py-2 text-sm font-mono self-start w-56"
+            value={keyword}
+            onChange={(e) => { setKeywordTouched(true); setKeyword(e.target.value.trim().toLowerCase()); }}
+            placeholder="vd: godeye"
+          />
+          <span className={`text-xs font-normal ${keywordBad ? "text-red-600" : "text-muted"}`}>
+            {keywordBad
+              ? `Chỉ chữ thường + số, 2-${KEYWORD_MAX} ký tự, không dấu gạch.`
+              : keyword
+                ? `Video sẽ hiện "Comment ${keyword}" và giọng đọc nhắc từ này. Rule comment-to-DM lúc đăng dùng đúng nó.`
+                : "Để trống nếu không có gì gửi qua DM. CTA cuối video quay về bản chỉ nhắc theo dõi."}
+          </span>
+        </label>
+
+        <button className="btn btn-primary self-start" disabled={starting || !info.trim() || keywordBad} onClick={startBuild}>
+          {starting ? "Đang xếp hàng…" : "Tạo video"}
         </button>
         {err && <div className="text-xs text-red-600">{err}</div>}
       </div>
@@ -172,13 +295,21 @@ export default function EditDailyNewsPage() {
               build.state === "done" ? "text-green-600" :
               build.state === "failed" ? "text-red-600" : "text-amber-600"
             }>
-              {build.state === "running" ? "⏳ đang dựng + render (~15 phút)…" :
+              {build.state === "queued" ? "⏸ chờ tới lượt" :
+               build.state === "running" ? "⏳ đang dựng + render (~15 phút)…" :
                build.state === "done" ? "✓ xong" : "✗ lỗi"}
             </span>
+            {build.keyword && <span className="text-xs text-muted font-mono">comment {build.keyword}</span>}
           </div>
-          <pre className="text-xs bg-black/90 text-green-200 rounded-lg p-3 overflow-auto max-h-64 whitespace-pre-wrap">
-            {build.logTail || "(chưa có log)"}
-          </pre>
+          {build.failReason && (
+            <div className="text-xs text-red-600 border border-red-200 bg-red-50 rounded-lg p-2">{build.failReason}</div>
+          )}
+          <details>
+            <summary className="text-xs text-muted cursor-pointer">Log agent</summary>
+            <pre className="text-xs bg-black/90 text-green-200 rounded-lg p-3 mt-2 overflow-auto max-h-64 whitespace-pre-wrap">
+              {build.logTail || "(chưa có log)"}
+            </pre>
+          </details>
         </div>
       )}
 
@@ -210,6 +341,38 @@ export default function EditDailyNewsPage() {
               ))}
             </div>
           </div>
+
+          {autoDm && (platforms.includes("facebook") || platforms.includes("instagram") || platforms.includes("youtube")) ? (
+            <div className="flex flex-col gap-2 border border-line rounded-lg p-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-ink">
+                <input type="checkbox" checked={autoDmEnabled} onChange={(e) => setAutoDmEnabled(e.target.checked)} />
+                Tự tạo comment-to-DM + reply YouTube khi đăng
+              </label>
+              <p className="text-xs text-muted">
+                Link GitHub rút từ topic: <span className="font-mono">{autoDm.link}</span>. FB/IG: comment đúng keyword được nhắn riêng link này. YouTube: reply công khai chỉ đường search Google (YouTube chặn link trong comment).
+              </p>
+              <label className="text-xs text-ink flex flex-col gap-1">
+                Keyword
+                <input className="border border-line rounded-lg px-3 py-2 text-sm" disabled={!autoDmEnabled}
+                  value={autoDmKeyword} onChange={(e) => setAutoDmKeyword(e.target.value)} />
+              </label>
+              <label className="text-xs text-ink flex flex-col gap-1">
+                DM message
+                <textarea className="border border-line rounded-lg px-3 py-2 text-sm min-h-[60px]" disabled={!autoDmEnabled}
+                  value={autoDmMessage} onChange={(e) => setAutoDmMessage(e.target.value)} />
+              </label>
+              <label className="text-xs text-ink flex flex-col gap-1">
+                Reply công khai
+                <input className="border border-line rounded-lg px-3 py-2 text-sm" disabled={!autoDmEnabled}
+                  value={autoDmReply} onChange={(e) => setAutoDmReply(e.target.value)} />
+              </label>
+              {schedule && (
+                <p className="text-xs text-amber-600">Bài hẹn lịch: automation KHÔNG tự tạo lúc bấm nút, tự vào /comment-to-dm tạo sau khi bài lên sóng.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted">Không thấy link GitHub trong topic gốc, bỏ qua auto comment-to-DM.</p>
+          )}
 
           <label className="text-sm font-medium text-ink flex flex-col gap-1">
             Playlist YouTube
@@ -248,31 +411,35 @@ export default function EditDailyNewsPage() {
         </div>
       )}
 
-      {/* Trạng thái chung */}
+      {/* Hàng đợi job */}
       <div className="card p-5 mt-4 flex flex-col gap-3">
-        <div className="text-sm font-medium text-ink">Project gần nhất</div>
+        <div className="text-sm font-medium text-ink">Hàng đợi</div>
         {!status ? (
           <div className="text-xs text-muted">Đang tải…</div>
-        ) : status.recentProjects.length === 0 ? (
-          <div className="text-xs text-muted">Chưa có project nào.</div>
+        ) : jobs.length === 0 ? (
+          <div className="text-xs text-muted">Chưa có job nào.</div>
         ) : (
-          <>
-            <ul className="text-xs flex flex-col gap-1 items-start">
-              {status.recentProjects.map((p) => (
-                <li key={p}>
-                  <button
-                    type="button"
-                    className={`font-mono hover:underline ${p === slug ? "text-ink font-semibold" : "text-brand"}`}
-                    onClick={() => openProject(p)}
-                  >
-                    {p}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <p className="text-xs text-muted">Bấm 1 project để mở lại video + caption và đăng.</p>
-          </>
+          <ul className="flex flex-col gap-0.5">
+            {jobs.map((j) => (
+              <li key={j.slug}>
+                <button
+                  type="button"
+                  onClick={() => openProject(j.slug)}
+                  className={`w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/5 ${j.slug === slug ? "bg-black/5" : ""}`}
+                >
+                  <span className={`text-xs shrink-0 w-16 ${STATE_CLASS[j.state]}`}>{STATE_LABEL[j.state]}</span>
+                  <span className="text-xs text-ink truncate flex-1">{jobTitle(j)}</span>
+                  {j.keyword && <span className="text-xs text-muted font-mono shrink-0">{j.keyword}</span>}
+                  <span className="text-xs text-muted font-mono shrink-0 w-10 text-right">{elapsed(j)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
+        <p className="text-xs text-muted">
+          Chạy tuần tự 1 video/lần: hai agent headless cùng lúc sẽ đá nhau khỏi phiên đăng nhập.
+          Bắn bao nhiêu topic cũng được, bấm 1 dòng để mở video + caption và đăng.
+        </p>
       </div>
     </div>
   );
