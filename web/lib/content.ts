@@ -176,6 +176,7 @@ export async function saveItem(item: ContentItem): Promise<ContentItem> {
 }
 
 async function mirrorToObsidian(item: ContentItem, contents: string) {
+  if (!OBSIDIAN_CONTENT) return; // OBSIDIAN_CONTENT_DIR trong .env để trống = tắt mirror
   try {
     const obsSub = OBSIDIAN_DIRS[item.type] || "posts";
     const base = path.basename(item.id);

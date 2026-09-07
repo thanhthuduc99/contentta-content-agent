@@ -34,3 +34,18 @@ Thumbs.db
 .vercel/
 .wrangler/
 .cloudflared/
+
+# Video build sandboxes: chi giu template/scaffold, khong giu output
+edit-agent/sandbox/*/node_modules/
+edit-agent/sandbox/*/.cache/
+edit-agent/sandbox/*/video-projects/*
+!edit-agent/sandbox/*/video-projects/.gitkeep
+!edit-agent/sandbox/*/video-projects/scaffold-yt-summary/
+edit-agent/sandbox/*/renders/
+**/preview/
+**/.frames/
+
+# Credential ngoai .env
+**/credentials.json
+**/token*.json
+web/data/app-keys.json

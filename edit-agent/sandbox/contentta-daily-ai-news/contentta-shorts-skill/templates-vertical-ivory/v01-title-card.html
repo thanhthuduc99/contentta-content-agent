@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v01 — Title card (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 56px; }
+  .sq.lg { width: 232px; height: 232px; border-radius: 60px; }
+  .sq.lg img { width: 140px; height: 140px; }
+  .glow {
+    position: absolute; left: 50%; top: 42%; width: 980px; height: 980px;
+    transform: translate(-50%, -50%) scale(.82); opacity: 0;
+    background: radial-gradient(circle, rgba(91,71,224,.16), transparent 62%);
+    filter: blur(20px); z-index: 1;
+  }
+  .icon-wrap { position: relative; opacity: 0; }
+  .icon-wrap .badge { top: -20px; left: auto; right: -20px; transform: none; width: 62px; height: 62px; font-size: 32px; }
+
+  /* Giới hạn đo thật: .headline.xl 96px = 22 ký tự/dòng trong khung 936 */
+  .title { font-size: 118px; letter-spacing: -.045em; line-height: 1.02; text-align: center; }
+  .title .w { display: inline-block; opacity: 0; }
+
+  .eyebrow { opacity: 0; }
+  .rail-wrap { display: flex; flex-direction: column; align-items: center; gap: 24px; margin-top: 22px; }
+  .rail i { opacity: 0; transform-origin: left center; }
+  .part { font-size: 25px; font-weight: 600; letter-spacing: .22em; color: var(--ink-soft); opacity: 0; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+  <div class="glow"></div>
+
+  <div class="content">
+    <div class="icon-wrap">
+      <div class="sq lg rose"><img src="../shared/emoji/brain.png" alt=""></div>
+      <div class="badge" style="--badge-bg: var(--plum)">1</div>
+    </div>
+
+    <div class="eyebrow" style="--dot: var(--plum-2)">Tin AI hôm nay</div>
+
+    <h1 class="headline xl title"><span class="w">OpenViking</span></h1>
+
+    <div class="rail-wrap">
+      <div class="rail" style="--rail-on: var(--plum)">
+        <i class="on"></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="part tabnum">PHẦN 1 / 5</div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 5.0;
+  const tl = gsap.timeline({ paused: true });
+
+  tl.fromTo('.glow',      { opacity: 0, scale: .82 }, { opacity: 1, scale: 1, duration: .9, ease: 'power2.out' }, 0)
+    .fromTo('.icon-wrap', { opacity: 0, y: 48, scale: .92 }, { opacity: 1, y: 0, scale: 1, duration: .55, ease: 'back.out(1.4)' }, .10)
+    .fromTo('.badge',     { scale: 0 }, { scale: 1, duration: .34, ease: 'back.out(2)' }, .38)
+    .fromTo('.eyebrow',   { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: 'power3.out' }, .48)
+    .fromTo('.title .w',  { opacity: 0, y: 44 }, { opacity: 1, y: 0, duration: .5, ease: 'power3.out', stagger: .08 }, .62)
+    .fromTo('.rail i',    { opacity: 0, scaleX: .3 }, { opacity: 1, scaleX: 1, duration: .3, ease: 'power2.out', stagger: .06 }, 1.10)
+    .fromTo('.part',      { opacity: 0 }, { opacity: 1, duration: .35, ease: 'power2.out' }, 1.42);
+
+  // Idle: yoyo hữu hạn — seek được, không dùng repeat:-1
+  tl.to('.icon-wrap', { y: -14, duration: 1.1, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 1.6);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v01-title-card'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "contentta-daily-ai-news",
+  "version": "1.0.0",
+  "description": "Daily AI news short generator — Contentta brand, no-face TTS pipeline. Runs as scheduled Claude Code remote routine.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "fetch:yt": "node tools/fetch-nateherk.mjs",
+    "fetch:gh": "node tools/fetch-github-trending.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "gsap": "^3.14.2",
+    "hyperframes": "^0.6.76",
+    "youtube-transcript": "^1.2.1"
+  }
+}

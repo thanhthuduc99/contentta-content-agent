@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v14 — Media slideshow (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 42px; }
+  .head { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .eyebrow { opacity: 0; }
+  .headline { text-align: center; opacity: 0; }
+
+  /* Ảnh thật giữ nguyên tỉ lệ gốc, thu nhỏ cho vừa khung, không cắt.
+     Khung cao cố định để 3 ảnh khác tỉ lệ vẫn không làm layout nhảy. */
+  .deck { position: relative; width: 936px; height: 620px; opacity: 0; }
+  .slide {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    opacity: 0;
+  }
+  .slide .shot { width: 100%; }
+  .slide img { display: block; width: 100%; }
+
+  .caps { position: relative; height: 46px; width: 100%; }
+  .cap {
+    position: absolute; left: 0; right: 0; top: 0; text-align: center;
+    font-size: 30px; font-weight: 600; color: var(--ink); opacity: 0;
+  }
+
+  .rail { justify-content: center; }
+  .rail i { opacity: .35; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--gold)">Nó trông thế nào</div>
+      <h2 class="headline sm">Ba màn hình đáng xem</h2>
+    </div>
+
+    <div class="deck">
+      <div class="slide s1"><div class="shot"><div class="shot-bar"><i></i><i></i><i></i></div><img src="demo-assets/gh-studio.png" alt=""></div></div>
+      <div class="slide s2"><div class="shot"><div class="shot-bar"><i></i><i></i><i></i></div><img src="demo-assets/gh-saas.png" alt=""></div></div>
+      <div class="slide s3"><div class="shot"><div class="shot-bar"><i></i><i></i><i></i></div><img src="demo-assets/gh-selfhosted.png" alt=""></div></div>
+    </div>
+
+    <div class="caps">
+      <div class="cap k1">Studio playground để thử ngay trên trình duyệt</div>
+      <div class="cap k2">Bản SaaS dựng sẵn, cắm khoá là chạy</div>
+      <div class="cap k3">Bản tự host, dữ liệu nằm trong máy mình</div>
+    </div>
+
+    <div class="rail" style="--rail-on: var(--plum)"><i class="r1"></i><i class="r2"></i><i class="r3"></i></div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 8.0;
+  const tl = gsap.timeline({ paused: true });
+  const EASE = 'power3.out';
+  const HOLD = 2.2;   // mỗi ảnh giữ bao lâu
+  const START = .58;
+
+  tl.fromTo('.eyebrow',  { opacity: 0, y: 18 },            { opacity: 1, y: 0, duration: .4, ease: EASE }, 0)
+    .fromTo('.headline', { opacity: 0, y: 26 },            { opacity: 1, y: 0, duration: .5, ease: EASE }, .14)
+    .fromTo('.deck',     { opacity: 0, y: 36, scale: .97 },{ opacity: 1, y: 0, scale: 1, duration: .6, ease: EASE }, .40);
+
+  [1, 2, 3].forEach((n, i) => {
+    const at = START + i * HOLD;
+    tl.fromTo(`.slide.s${n}`, { opacity: 0, xPercent: 6 }, { opacity: 1, xPercent: 0, duration: .5, ease: EASE }, at)
+      .fromTo(`.cap.k${n}`,   { opacity: 0, y: 14 },       { opacity: 1, y: 0, duration: .4, ease: EASE }, at + .14)
+      .to(`.rail i.r${n}`,    { opacity: 1, backgroundColor: '#4A3AE0', duration: .3, ease: 'power2.out' }, at);
+    if (i < 2) {
+      tl.to(`.slide.s${n}`, { opacity: 0, xPercent: -6, duration: .45, ease: 'power2.in' }, at + HOLD - .1)
+        .to(`.cap.k${n}`,   { opacity: 0, y: -12, duration: .34, ease: 'power2.in' }, at + HOLD - .1)
+        .to(`.rail i.r${n}`,{ opacity: .35, backgroundColor: 'rgba(23,19,13,0.14)', duration: .3 }, at + HOLD - .1);
+    }
+  });
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v14-media-slideshow'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

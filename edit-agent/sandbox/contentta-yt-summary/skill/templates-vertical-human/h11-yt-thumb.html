@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h11 — YouTube thumbnail intro (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  /* ============================================================
+     SCENE MỞ ĐẦU: giới thiệu video gốc bằng chính thumbnail YouTube.
+     Ảnh nằm TRONG scene (không phải raw track): demo-assets/thumb.jpg
+     -> template-to-scene.mjs đổi thành assets/media/thumb.jpg.
+     ============================================================ */
+  .content { padding: 330px 0 300px; align-items: center; }
+
+  .head { width: 936px; display: flex; flex-direction: column; gap: 22px; align-items: flex-start; }
+  .head .headline { text-align: left; }
+
+  .tcard { position: relative; width: 936px; margin-top: 54px; transform: rotate(-1deg); }
+
+  .shot {
+    width: 936px; height: 527px; overflow: hidden;
+    border-radius: 16px; border: 3px solid var(--line-strong);
+    box-shadow: var(--shadow-lift); background: var(--ink);
+  }
+  .shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+  .play {
+    position: absolute; left: 50%; top: 50%;
+    width: 152px; height: 152px; margin: -76px 0 0 -76px;
+    border-radius: 999px; background: var(--plum);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 16px 36px rgba(23,19,13,.36);
+    opacity: 0;
+  }
+  .play .tri {
+    width: 0; height: 0; margin-left: 14px;
+    border-left: 46px solid var(--ivory);
+    border-top: 29px solid transparent;
+    border-bottom: 29px solid transparent;
+  }
+
+  .bar {
+    position: absolute; left: 26px; right: 26px; bottom: 26px;
+    height: 10px; border-radius: 999px;
+    background: rgba(250,246,239,.34); overflow: hidden; opacity: 0;
+  }
+  .bar span {
+    display: block; height: 100%; width: 100%; border-radius: 999px;
+    background: var(--plum); transform: scaleX(0); transform-origin: left center;
+  }
+
+  .vtitle {
+    margin-top: 50px; width: 880px; text-align: center;
+    font-size: 40px; line-height: 1.34; font-weight: 600; color: var(--ink);
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--plum)">Video mới trên kênh</div>
+      <h1 class="headline sm">Đây là video nói về <span class="accent">Skills trong Claude Code</span></h1>
+    </div>
+
+    <div class="tcard">
+      <div class="tape"></div>
+      <div class="shot"><img src="demo-assets/thumb.jpg" alt=""></div>
+      <div class="play"><span class="tri"></span></div>
+      <div class="bar"><span></span></div>
+      <div class="cursor"><div class="cursor-outline"></div><div class="cursor-fill"></div></div>
+    </div>
+
+    <p class="vtitle">Học Claude Code: tìm hiểu về Skills</p>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+    // Ảnh phải decode xong trước __READY, không thì frame đầu ra ô đen.
+    const img = document.querySelector('.shot img');
+    if (img && !img.complete) { try { await img.decode(); } catch (e) {} }
+
+    const DUR = 6.5;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    const tcard = document.querySelector('.tcard');
+    const cursor = document.querySelector('.cursor');
+    const play = document.querySelector('.play');
+
+    function targetFor(el, dx, dy) {
+      const base = tcard.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: (r.left - base.left) + r.width * dx, y: (r.top - base.top) + r.height * dy };
+    }
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .10)
+      .fromTo('.headline', { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: .55, ease: EASE }, .24)
+      .fromTo('.tcard', { opacity: 0, y: 64, rotation: -4.2 }, { opacity: 1, y: 0, rotation: -1, duration: .62, ease: 'back.out(1.3)' }, .58)
+      .fromTo('.play', { opacity: 0, scale: .7 }, { opacity: 1, scale: 1, duration: .42, ease: 'back.out(1.8)' }, 1.08);
+
+    const pPlay = targetFor(play, 0.5, 0.5);
+    const pStart = { x: pPlay.x + 170, y: pPlay.y + 230 };
+
+    tl.set(cursor, { x: pStart.x, y: pStart.y })
+      .to(cursor, { opacity: 1, duration: .2 }, 1.55)
+      .to(cursor, { x: pPlay.x - 8, y: pPlay.y - 6, duration: .55, ease: 'power2.inOut' }, 1.70);
+
+    // Click play: nút nén rồi tan, thanh tiến trình chạy như video đang phát
+    tl.to(cursor, { scale: .8, duration: .1, ease: 'power1.in' }, 2.34)
+      .to(cursor, { scale: 1, duration: .16, ease: 'back.out(2)' }, 2.44)
+      .to(play, { scale: .9, duration: .1, ease: 'power1.in' }, 2.34)
+      .to(play, { scale: 1.35, opacity: 0, duration: .42, ease: EASE }, 2.46)
+      .to('.bar', { opacity: 1, duration: .3 }, 2.52)
+      .to('.bar span', { scaleX: .38, duration: 2.1, ease: 'none' }, 2.60)
+      .to(cursor, { x: pStart.x, y: pStart.y, opacity: 0, duration: .5, ease: 'power2.in' }, 2.78);
+
+    tl.fromTo('.vtitle', { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, 3.10);
+
+    // Idle: card thở rất nhẹ
+    tl.to('.tcard', { rotation: -1.9, duration: 1.1, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 3.8);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h11-yt-thumb'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

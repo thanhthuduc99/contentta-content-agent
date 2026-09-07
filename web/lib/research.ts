@@ -174,6 +174,7 @@ export async function saveResearch(
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, name), md, "utf8");
   try {
+    if (!OBSIDIAN_RESEARCH) return rel; // OBSIDIAN_RESEARCH_DIR để trống = tắt mirror
     const od = path.join(OBSIDIAN_RESEARCH, subdir);
     await fs.mkdir(od, { recursive: true });
     await fs.writeFile(path.join(od, name), md, "utf8");

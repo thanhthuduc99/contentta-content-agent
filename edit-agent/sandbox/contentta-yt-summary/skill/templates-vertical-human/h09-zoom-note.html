@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h09 — Zoom note (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; }
+
+  /* Toàn cụm nằm trong .cam — camera drift/zoom nhẹ trên wrapper này (transform only) */
+  .cam { display: flex; flex-direction: column; align-items: center; gap: 46px; }
+
+  .focus-card {
+    position: relative;
+    width: 890px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 30px;
+    box-shadow: var(--shadow-lift);
+    padding: 160px 54px 56px;
+    opacity: 0;
+  }
+  /* Icon lồi lên trên card 52px, thân icon 180px → chữ bắt đầu dưới y=128 trong card */
+  .focus-card .sq { position: absolute; top: -52px; left: 50%; margin-left: -90px; }
+
+  /* .focus-title 44px box 782 = ~36 ký tự; .focus-sub 30px = ~56 ký tự */
+  .focus-title { margin: 0; font-size: 44px; font-weight: 800; line-height: 1.25; text-align: center;
+    font-family: 'Bricolage Grotesque', sans-serif; letter-spacing: -.02em; color: var(--ink); }
+  .focus-sub { margin: 18px 0 0; font-size: 30px; line-height: 1.5; text-align: center; color: var(--ink-soft); }
+
+  /* Chú thích "viết tay" (Lora italic) + nét gạch nối vào card */
+  .margin-note { position: relative; align-self: flex-end; margin-right: 60px; opacity: 0; }
+  .margin-note .accent { font-size: 36px; }
+  .note-svg { position: absolute; right: 100%; top: -46px; width: 150px; height: 90px; overflow: visible; }
+  .note-svg path { fill: none; stroke: var(--plum); stroke-width: 6; stroke-linecap: round; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="cam">
+      <div class="eyebrow" style="--dot: var(--plum-2)">Nhớ mỗi điều này thôi</div>
+
+      <div class="focus-card">
+        <div class="sq lg lav"><img src="../shared/emoji/bullseye.png" alt=""></div>
+        <h1 class="focus-title">Skill dùng hàng ngày mới để global</h1>
+        <p class="focus-sub">Còn lại nhét vào project. Context sạch, câu trả lời giữ chất lượng.</p>
+      </div>
+
+      <div class="margin-note">
+        <span class="accent">nhiều người quên chỗ này!</span>
+        <svg class="note-svg" viewBox="0 0 150 90">
+          <path class="n-line" d="M 140 78 C 90 84, 40 60, 18 16"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 6.0;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    const nLine = document.querySelector('.n-line');
+    const len = nLine.getTotalLength();
+    gsap.set(nLine, { strokeDasharray: len, strokeDashoffset: len });
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .10)
+      .fromTo('.focus-card', { opacity: 0, y: 48, scale: .96 }, { opacity: 1, y: 0, scale: 1, duration: .6, ease: EASE }, .35);
+
+    // Camera cầm tay: đẩy vào chậm + trôi chéo nhẹ, rồi giữ — drift là "người quay", không phải element
+    tl.fromTo('.cam', { scale: 1, x: 0, y: 0 }, { scale: 1.06, x: -14, y: 10, duration: 2.6, ease: 'sine.inOut' }, .9)
+      .to('.cam', { scale: 1.045, x: -6, y: 4, duration: 1.6, ease: 'sine.inOut' }, 3.5);
+
+    // Chú thích viết tay + nét dẫn
+    tl.fromTo('.margin-note', { opacity: 0, y: 16, rotation: 2 }, { opacity: 1, y: 0, rotation: 0, duration: .45, ease: EASE }, 1.7)
+      .to(nLine, { strokeDashoffset: 0, duration: .5, ease: 'power1.inOut' }, 1.95);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h09-zoom-note'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

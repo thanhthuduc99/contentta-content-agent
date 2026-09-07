@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v02 — Hook statement (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 46px; }
+  .eyebrow { opacity: 0; }
+
+  /* .headline.xl 96px = 22 ký tự/dòng. Chia dòng thủ công bằng .ln cho đúng ý nhấn. */
+  .headline { text-align: center; }
+  .ln { display: block; opacity: 0; }
+
+  .underline { position: relative; display: inline-block; }
+  .underline svg {
+    position: absolute; left: -10px; right: -10px; bottom: -18px; width: calc(100% + 20px); height: 30px;
+    overflow: visible;
+  }
+  .underline path {
+    fill: none; stroke: var(--plum-2); stroke-width: 9; stroke-linecap: round;
+    stroke-dasharray: 460; stroke-dashoffset: 460;
+  }
+
+  .sub { text-align: center; max-width: 820px; opacity: 0; }
+  .mark {
+    font-family: 'Lora', Georgia, serif; font-style: italic; font-weight: 600;
+    font-size: 170px; line-height: .6; color: var(--ink-faint); opacity: 0;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="mark">&ldquo;</div>
+
+    <div class="eyebrow" style="--dot: var(--peach)">Câu hỏi thật</div>
+
+    <h1 class="headline xl">
+      <span class="ln">Agent quên sạch</span>
+      <span class="ln">sau mỗi phiên</span>
+      <span class="ln"><span class="underline">thì làm được gì<svg viewBox="0 0 460 30" preserveAspectRatio="none"><path d="M6 20 C 130 6, 320 6, 454 17"/></svg></span>?</span>
+    </h1>
+
+    <p class="sub">Đó là lỗ hổng mà 32 nghìn người vừa bấm sao để chờ ai đó vá lại</p>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 5.5;
+  const tl = gsap.timeline({ paused: true });
+
+  // v02 nằm trong nhóm được overshoot mạnh (hook 3 giây đầu)
+  tl.fromTo('.mark',      { opacity: 0, y: 26, scale: .8 }, { opacity: 1, y: 0, scale: 1, duration: .5, ease: 'back.out(1.8)' }, 0)
+    .fromTo('.eyebrow',   { opacity: 0, y: 18 },            { opacity: 1, y: 0, duration: .4, ease: 'power3.out' }, .18)
+    .fromTo('.ln',        { opacity: 0, y: 52 },            { opacity: 1, y: 0, duration: .58, ease: 'back.out(1.3)', stagger: .16 }, .40)
+    .to('.underline path', { strokeDashoffset: 0, duration: .55, ease: 'power2.inOut' }, 1.28)
+    .fromTo('.sub',       { opacity: 0, y: 24 },            { opacity: 1, y: 0, duration: .5, ease: 'power3.out' }, 1.72);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v02-hook-statement'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

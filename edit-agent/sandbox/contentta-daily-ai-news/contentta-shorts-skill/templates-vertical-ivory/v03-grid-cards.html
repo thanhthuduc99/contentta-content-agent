@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v03 — Grid cards dọc (1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: stretch; justify-content: center; gap: 40px; }
+
+  .head { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .eyebrow { opacity: 0; }
+  /* .headline.sm 62px = 36 ký tự/dòng (đo thật) */
+  .headline { text-align: center; opacity: 0; }
+
+  .list { display: flex; flex-direction: column; gap: 26px; margin-top: 12px; }
+  .card {
+    display: flex; align-items: center; gap: 28px;
+    padding: 30px 34px;
+    opacity: 0;
+  }
+  .card .txt { flex: 1; min-width: 0; }
+  /* .card-label 34px = 48 ký tự · .card-note 26px = 66 ký tự (khung 732) */
+  .num {
+    flex: none; width: 52px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 44px; font-weight: 800; line-height: 1;
+    color: var(--ink-faint); text-align: right;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--sage)">Repo đang nóng</div>
+      <h2 class="headline sm">OpenViking làm được gì</h2>
+    </div>
+
+    <div class="list">
+      <div class="card">
+        <div class="num tabnum">01</div>
+        <div class="sq sm rose"><img src="../shared/emoji/brain.png" alt=""></div>
+        <div class="txt">
+          <p class="card-label">Bộ nhớ dài hạn cho agent</p>
+          <p class="card-note">Agent nhớ được ngữ cảnh cũ, không hỏi lại từ đầu</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="num tabnum">02</div>
+        <div class="sq sm sky"><img src="../shared/emoji/magnifying_glass_tilted_left.png" alt=""></div>
+        <div class="txt">
+          <p class="card-label">RAG tri thức gắn sẵn</p>
+          <p class="card-note">Tìm trong tài liệu riêng, trả lời theo dữ liệu của bạn</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="num tabnum">03</div>
+        <div class="sq sm lav"><img src="../shared/emoji/puzzle_piece.png" alt=""></div>
+        <div class="txt">
+          <p class="card-label">Kho kỹ năng dùng chung</p>
+          <p class="card-note">Nhiều agent xài chung một bộ skill, không viết lại</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="num tabnum">04</div>
+        <div class="sq sm sage"><img src="../shared/emoji/counterclockwise_arrows_button.png" alt=""></div>
+        <div class="txt">
+          <p class="card-label">Tự cập nhật theo thời gian</p>
+          <p class="card-note">Càng chạy càng gọn, tự dọn ngữ cảnh thừa</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 6.0;
+  const tl = gsap.timeline({ paused: true });
+
+  // DS thuần: chỉ transform + opacity, ease (.22,1,.36,1), stagger 0.16
+  const EASE = 'power3.out';
+
+  tl.fromTo('.eyebrow',  { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, 0)
+    .fromTo('.headline', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .14)
+    .fromTo('.card',     { opacity: 0, y: 42 }, { opacity: 1, y: 0, duration: .55, ease: EASE, stagger: .16 }, .46)
+    .fromTo('.card .sq', { scale: .82 },        { scale: 1, duration: .45, ease: 'back.out(1.6)', stagger: .16 }, .54);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v03-grid-cards'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

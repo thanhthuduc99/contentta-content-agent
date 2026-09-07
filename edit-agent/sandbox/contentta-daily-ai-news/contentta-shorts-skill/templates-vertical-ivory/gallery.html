@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Template dọc ivory — Contentta daily news</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<style>
+  :root {
+    --ivory: #FAF6EF; --paper: #fff; --ink: #17130D; --ink-soft: #4A4339;
+    --line: rgba(23,19,13,.09); --plum: #4A3AE0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 56px 48px 96px;
+    background: var(--ivory); color: var(--ink);
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  }
+  h1 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 42px; letter-spacing: -.03em; margin: 0 0 10px; }
+  .lede { margin: 0 0 34px; font-size: 17px; color: var(--ink-soft); max-width: 760px; line-height: 1.6; }
+  .controls { margin: 0 0 30px; }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer;
+    padding: 9px 18px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 34px; }
+  figure { margin: 0; }
+  video {
+    width: 100%; aspect-ratio: 9 / 16; display: block; border-radius: 18px;
+    background: var(--paper); border: 1px solid var(--line);
+    box-shadow: 0 2px 4px rgba(23,19,13,.05), 0 16px 40px rgba(23,19,13,.10);
+  }
+  figcaption { margin-top: 14px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+  figcaption span { display: block; font-weight: 400; color: var(--ink-soft); margin-top: 4px; }
+  figcaption em { font-style: normal; color: var(--plum); font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Template dọc ivory</h1>
+  <p class="lede">
+    Khung 1080x1920, hệ màu Contentta hiện tại, no-face, animation GSAP kèm sẵn trong từng file.
+    Nội dung mẫu lấy từ repo thật <strong>volcengine/OpenViking</strong>, số liệu qua API GitHub, ảnh chụp nguyên khung 16:9 rồi thu nhỏ chứ không cắt.
+    Template chỉ là gợi ý, lúc dựng video vẫn đổi bố cục theo nội dung.
+  </p>
+
+  <p class="controls"><button onclick="document.querySelectorAll('video').forEach(v=>{v.currentTime=0;v.play()})">Phát lại tất cả</button></p>
+
+  <div class="grid">
+    <figure><video src="preview/v01-title-card.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v01 — Title card<span>Mở video, mở chương mới. 5,0s</span></figcaption></figure>
+
+    <figure><video src="preview/v02-hook-statement.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v02 — Hook statement<span>Câu tuyên bố mạnh hoặc câu hỏi mở. 5,5s · <em>được overshoot mạnh</em></span></figcaption></figure>
+
+    <figure><video src="preview/v03-grid-cards.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v03 — Grid cards dọc<span>Liệt kê 3-4 ý ngang hàng, xếp 1 cột. 6,0s</span></figcaption></figure>
+
+    <figure><video src="preview/v06-workflow.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v06 — Workflow<span>Pipeline 3-5 bước, mũi tên đi xuống. 6,5s</span></figcaption></figure>
+
+    <figure><video src="preview/v07-big-number.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v07 — Big number<span>Một con số cần đóng đinh. 5,5s · <em>được overshoot mạnh</em></span></figcaption></figure>
+
+
+    <figure><video src="preview/v09-screenshot-callout.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v09 — Screenshot callout<span>Chỉ vào ảnh thật lấy từ link. 6,0s</span></figcaption></figure>
+
+    <figure><video src="preview/v10-terminal-code.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v10 — Terminal / code<span>Demo lệnh, YAML, cấu hình. 6,5s · tối đa 56 cột</span></figcaption></figure>
+
+    <figure><video src="preview/v11-before-after.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v11 — Before / after<span>Đối chiếu trước và sau, trên dưới. 6,5s</span></figcaption></figure>
+
+    <figure><video src="preview/v13-cta-outro.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v13 — CTA outro<span>Chốt cuối video. 5,0s · thay cta-supernova cũ</span></figcaption></figure>
+
+    <figure><video src="preview/v14-media-slideshow.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v14 — Media slideshow<span>2-3 ảnh thật trượt nối tiếp. 8,0s</span></figcaption></figure>
+
+    <figure><video src="preview/v15-follow-comment.mp4" autoplay muted loop playsinline></video>
+      <figcaption>v15 — Follow &amp; comment CTA<span>Follow + comment để nhận link/tài liệu. 6,0s</span></figcaption></figure>
+  </div>
+</body>
+</html>

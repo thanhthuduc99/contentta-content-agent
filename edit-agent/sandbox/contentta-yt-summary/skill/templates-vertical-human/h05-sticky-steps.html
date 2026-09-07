@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h05 — Sticky steps (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 46px; }
+  .content > .headline { text-align: center; }
+
+  .stack { display: flex; flex-direction: column; gap: 38px; width: 936px; }
+
+  /* Note giấy: mỗi note lệch 1 hướng, số bước viết to bên trái.
+     .note-label 36px trong box ~700 = ~44 ký tự; .note-sub 27px = ~62 ký tự */
+  .note { display: flex; align-items: center; gap: 30px; opacity: 0; }
+  .note.n1 { --note-bg: var(--note-gold);  --tilt: -1.8deg; align-self: flex-start; width: 860px; }
+  .note.n2 { --note-bg: var(--note-sky);   --tilt:  1.4deg; align-self: flex-end;   width: 860px; }
+  .note.n3 { --note-bg: var(--note-sage);  --tilt: -1.1deg; align-self: flex-start; width: 860px; }
+  .note .tape { width: 130px; margin-left: -65px; }
+
+  .step-no {
+    flex: none; width: 92px; height: 92px;
+    display: grid; place-items: center;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 52px; font-weight: 800; color: var(--plum);
+    background: rgba(255,255,255,.65);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 3px rgba(74,58,224,.30);
+  }
+  .note-label { margin: 0; font-size: 36px; font-weight: 700; line-height: 1.25; color: var(--ink); }
+  .note-sub { margin: 6px 0 0; font-size: 27px; font-weight: 400; line-height: 1.4; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="eyebrow" style="--dot: var(--gold)">Cách làm</div>
+    <h1 class="headline sm">3 bước <span class="accent">dựng agent</span> của bạn</h1>
+
+    <div class="stack">
+      <div class="note n1"><div class="tape"></div><div class="step-no">1</div><div><p class="note-label">Gom nguồn tin vào một chỗ</p><p class="note-sub">RSS, X, Reddit, GitHub trending</p></div></div>
+      <div class="note n2"><div class="tape"></div><div class="step-no">2</div><div><p class="note-label">Cho AI lọc và tóm tắt</p><p class="note-sub">Chỉ giữ tin mới trong 24 giờ</p></div></div>
+      <div class="note n3"><div class="tape"></div><div class="step-no">3</div><div><p class="note-label">Hẹn giờ chạy mỗi sáng</p><p class="note-sub">Báo cáo tự về lúc 8 giờ</p></div></div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 6.5;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .10)
+      .fromTo('.headline', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .26);
+
+    // Từng note "dán" xuống: rơi + xoay quá đà rồi về đúng độ lệch của nó
+    const notes = [
+      { el: '.note.n1', tilt: -1.8 },
+      { el: '.note.n2', tilt: 1.4 },
+      { el: '.note.n3', tilt: -1.1 },
+    ];
+    notes.forEach((n, i) => {
+      const t = .7 + i * .5;
+      tl.fromTo(n.el,
+        { opacity: 0, y: -46, rotation: n.tilt * 3.2, scale: 1.04 },
+        { opacity: 1, y: 0, rotation: n.tilt, scale: 1, duration: .55, ease: 'back.out(1.6)' }, t);
+    });
+
+    // Idle: note 2 hơi phập phồng như giấy chưa dán chặt
+    tl.to('.note.n2', { rotation: 2.2, duration: 1.0, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 2.6);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h05-sticky-steps'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Template dọc human — Contentta yt-summary</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<style>
+  :root {
+    --ivory: #FAF6EF; --paper: #fff; --ink: #17130D; --ink-soft: #4A4339;
+    --line: rgba(23,19,13,.09); --plum: #4A3AE0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 56px 48px 96px;
+    background: var(--ivory); color: var(--ink);
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  }
+  h1 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 42px; letter-spacing: -.03em; margin: 0 0 10px; }
+  .lede { margin: 0 0 34px; font-size: 17px; color: var(--ink-soft); max-width: 780px; line-height: 1.6; }
+  code { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 34px; }
+  figure { margin: 0; }
+  video {
+    width: 100%; aspect-ratio: 9 / 16; display: block; border-radius: 18px;
+    background: var(--paper); border: 1px solid var(--line); object-fit: cover;
+    box-shadow: 0 2px 4px rgba(23,19,13,.05), 0 16px 40px rgba(23,19,13,.10);
+  }
+  figcaption { margin-top: 14px; font-size: 15px; font-weight: 600; line-height: 1.35; }
+  figcaption span { display: block; font-weight: 400; color: var(--ink-soft); margin-top: 4px; }
+  figcaption em { font-style: normal; color: var(--plum); font-weight: 600; }
+</style>
+</head>
+<body>
+  <h1>Template dọc human</h1>
+  <p class="lede">
+    Bộ 10 template cho video tóm tắt YouTube (pipeline <code>contentta-yt-summary</code>).
+    Cùng brand ivory/plum với set daily-news, motion mô phỏng tay người: cursor bấm, marker gạch,
+    gõ phím, sticky note, nét vẽ tay, camera drift.
+    Chưa thấy chuyển động thì chạy <code>node render-preview.mjs clip all</code> (ảnh tĩnh hiện tạm khi chưa có clip).
+  </p>
+
+  <div class="grid">
+    <figure>
+      <video src="preview/h01-title-notebook.mp4" poster="preview/h01-title-notebook-t2_6.png" autoplay loop muted playsinline></video>
+      <figcaption>h01 — title notebook <span><em>Mở video.</em> Card giấy + tape dán lệch, marker gạch chân vẽ dần.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h02-hook-typing.mp4" poster="preview/h02-hook-typing-t4_5.png" autoplay loop muted playsinline></video>
+      <figcaption>h02 — hook typing <span><em>Câu hỏi mở đầu.</em> Gõ từng cụm từ, caret nháy.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h03-cursor-list.mp4" poster="preview/h03-cursor-list-t6.png" autoplay loop muted playsinline></video>
+      <figcaption>h03 — cursor list <span><em>3-4 ý chính.</em> Cursor trượt tới từng dòng rồi click chọn.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h04-video-frame.mp4" poster="preview/h04-video-frame-t3.png" autoplay loop muted playsinline></video>
+      <figcaption>h04 — video frame <span><em>Bọc đoạn thao tác.</em> Ô trống 936×527 tại x72 y700, video raw nằm dưới.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h05-sticky-steps.mp4" poster="preview/h05-sticky-steps-t3_2.png" autoplay loop muted playsinline></video>
+      <figcaption>h05 — sticky steps <span><em>Các bước làm.</em> Note giấy rơi xuống, xoay lệch.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h06-big-number-circle.mp4" poster="preview/h06-big-number-circle-t3.png" autoplay loop muted playsinline></video>
+      <figcaption>h06 — big number circle <span><em>Một con số đắt.</em> Số nảy vào, nét khoanh tròn tay vẽ.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h07-quote-highlight.mp4" poster="preview/h07-quote-highlight-t3_5.png" autoplay loop muted playsinline></video>
+      <figcaption>h07 — quote highlight <span><em>Trích câu nói.</em> Bút dạ quét qua 2 cụm chữ.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h08-compare-doodle.mp4" poster="preview/h08-compare-doodle-t3_2.png" autoplay loop muted playsinline></video>
+      <figcaption>h08 — compare doodle <span><em>Trước và sau.</em> Hai card lệch, mũi tên doodle nối.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h09-zoom-note.mp4" poster="preview/h09-zoom-note-t2_6.png" autoplay loop muted playsinline></video>
+      <figcaption>h09 — zoom note <span><em>Điều phải nhớ.</em> Camera đẩy nhẹ, chú thích viết tay.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h10-cta-group.mp4" poster="preview/h10-cta-group-t3_6.png" autoplay loop muted playsinline></video>
+      <figcaption>h10 — cta group <span><em>Outro CTA.</em> Card group, cursor bấm nút Tham gia, dòng comment keyword.</span></figcaption>
+    </figure>
+    <figure>
+      <video src="preview/h11-yt-thumb.mp4" poster="preview/h11-yt-thumb-t2.png" autoplay loop muted playsinline></video>
+      <figcaption>h11 — yt thumb <span><em>Scene mở đầu.</em> Thumbnail video gốc, cursor bấm play, thanh tiến trình chạy.</span></figcaption>
+    </figure>
+  </div>
+</body>
+</html>

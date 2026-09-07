@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v06 — Workflow dọc (1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 40px; }
+  .head { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .eyebrow { opacity: 0; }
+  .headline { text-align: center; opacity: 0; }
+
+  /* Khung dọc: node xếp dọc, mũi tên đi xuống thay vì sang phải */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; margin-top: 8px; }
+
+  .node {
+    display: flex; align-items: center; gap: 26px;
+    width: 780px; padding: 26px 32px;
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 24px; box-shadow: var(--shadow-soft);
+    opacity: 0;
+  }
+  .node .txt { flex: 1; min-width: 0; }
+  .node p { margin: 0; font-size: 32px; font-weight: 600; line-height: 1.24; letter-spacing: -.005em; }
+  .node small { display: block; margin-top: 5px; font-size: 24px; font-weight: 400; color: var(--ink-soft); }
+  .node .step {
+    flex: none; font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 26px; font-weight: 800; color: var(--ink-faint);
+  }
+
+  .arrow { height: 46px; width: 3px; background: var(--line-strong); position: relative; opacity: 0; transform-origin: top center; }
+  .arrow::after {
+    content: ''; position: absolute; left: 50%; bottom: -2px; width: 13px; height: 13px;
+    border-right: 3px solid var(--line-strong); border-bottom: 3px solid var(--line-strong);
+    transform: translateX(-50%) rotate(45deg);
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--lavender)">Nó chạy thế nào</div>
+      <h2 class="headline sm">Bốn bước, lặp mãi</h2>
+    </div>
+
+    <div class="flow">
+      <div class="node">
+        <span class="step tabnum">01</span>
+        <div class="sq sm sky"><img src="../shared/emoji/speech_balloon.png" alt=""></div>
+        <div class="txt"><p>Agent nói chuyện<small>Mọi lượt trao đổi đều được ghi lại</small></p></div>
+      </div>
+      <div class="arrow"></div>
+
+      <div class="node">
+        <span class="step tabnum">02</span>
+        <div class="sq sm rose"><img src="../shared/emoji/brain.png" alt=""></div>
+        <div class="txt"><p>Rút ra điều đáng nhớ<small>Bỏ phần thừa, giữ phần dùng lại được</small></p></div>
+      </div>
+      <div class="arrow"></div>
+
+      <div class="node">
+        <span class="step tabnum">03</span>
+        <div class="sq sm lav"><img src="../shared/emoji/magnifying_glass_tilted_left.png" alt=""></div>
+        <div class="txt"><p>Lần sau tự truy hồi<small>Đúng ngữ cảnh cần, không nạp cả kho</small></p></div>
+      </div>
+      <div class="arrow"></div>
+
+      <div class="node">
+        <span class="step tabnum">04</span>
+        <div class="sq sm sage"><img src="../shared/emoji/counterclockwise_arrows_button.png" alt=""></div>
+        <div class="txt"><p>Tự dọn định kỳ<small>Càng chạy lâu càng gọn, không phình</small></p></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 6.5;
+  const tl = gsap.timeline({ paused: true });
+  const EASE = 'power3.out';
+
+  tl.fromTo('.eyebrow',  { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, 0)
+    .fromTo('.headline', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .14);
+
+  // Node và mũi tên xen kẽ: node hiện rồi mũi tên mới kéo xuống
+  const nodes = gsap.utils.toArray('.node');
+  const arrows = gsap.utils.toArray('.arrow');
+  nodes.forEach((n, i) => {
+    const at = .48 + i * .58;
+    tl.fromTo(n, { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, at);
+    tl.fromTo(n.querySelector('.sq'), { scale: .84 }, { scale: 1, duration: .42, ease: 'back.out(1.6)' }, at + .06);
+    if (arrows[i]) tl.fromTo(arrows[i], { opacity: 0, scaleY: 0 }, { opacity: 1, scaleY: 1, duration: .26, ease: 'power2.out' }, at + .34);
+  });
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v06-workflow'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

@@ -23,8 +23,7 @@ type PostResult = {
   error?: string;
 };
 
-const DEFAULT_GROUP_URL = "https://www.facebook.com/groups/aiauacademy";
-const DEFAULT_GROUP_NAME = "AI Automation Academy";
+// Giá trị mặc định lấy từ GROUP_CTA_* trong .env, trả về kèm danh sách build.
 
 // clipYouTube trả path tuyệt đối, /api/media chỉ nhận tên file trong thư mục media của item.
 const baseName = (p: string) => p.split(/[\\/]/).pop() || p;
@@ -37,8 +36,8 @@ function fmtTime(sec: number): string {
 
 export default function EditYoutubePage() {
   const [url, setUrl] = useState("");
-  const [groupUrl, setGroupUrl] = useState(DEFAULT_GROUP_URL);
-  const [groupName, setGroupName] = useState(DEFAULT_GROUP_NAME);
+  const [groupUrl, setGroupUrl] = useState("");
+  const [groupName, setGroupName] = useState("");
   const [err, setErr] = useState("");
 
   const [postRunning, setPostRunning] = useState(false);
@@ -53,6 +52,11 @@ export default function EditYoutubePage() {
     try {
       const d = await fetch("/api/edit/youtube").then((r) => r.json());
       setJobs(d.jobs || []);
+      // Prefill CTA group từ GROUP_CTA_* trong .env, chỉ khi user chưa gõ gì.
+      if (d.groupCta) {
+        setGroupUrl((v) => v || d.groupCta.url || "");
+        setGroupName((v) => v || d.groupCta.name || "");
+      }
     } catch {}
   }
   useEffect(() => { loadJobs(); }, []);

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h08 — Compare doodle (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 44px; }
+  .content > .headline { text-align: center; }
+
+  .duel { position: relative; display: flex; flex-direction: column; gap: 90px; width: 936px; }
+
+  /* 2 card: trước xám nhạt hơi xoay, sau nổi bật viền plum.
+     .side-label 33px box ~800 = ~52 ký tự; li 28px = ~58 ký tự */
+  .side { position: relative; border-radius: 26px; padding: 38px 44px; opacity: 0; }
+  .side.bad {
+    background: var(--ivory-deep);
+    border: 1px solid var(--line-strong);
+    transform: rotate(-1.3deg);
+  }
+  .side.good {
+    background: var(--paper);
+    border: 2px solid rgba(74,58,224,.4);
+    box-shadow: var(--shadow-lift);
+    transform: rotate(0.8deg);
+  }
+  .side-head { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+  .side-head .sq { flex: none; }
+  .side-label { margin: 0; font-size: 33px; font-weight: 700; color: var(--ink); }
+  .side.bad .side-label { color: var(--ink-soft); }
+  .side ul { margin: 0; padding: 0 0 0 8px; list-style: none; }
+  .side li { position: relative; padding-left: 34px; font-size: 28px; line-height: 1.55; color: var(--ink-soft); }
+  .side li::before {
+    content: ''; position: absolute; left: 4px; top: .62em;
+    width: 14px; height: 4px; border-radius: 2px; background: var(--ink-faint);
+  }
+  .side.good li::before { background: var(--plum-2); }
+
+  /* Mũi tên doodle nối 2 card: vẽ tay cong từ card trên xuống card dưới */
+  .link-svg { position: absolute; left: 700px; top: 336px; width: 220px; height: 150px; overflow: visible; z-index: 3; }
+  .link-svg path { fill: none; stroke: var(--gold); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+  .link-note {
+    position: absolute; left: 430px; top: 372px;
+    font-size: 34px; opacity: 0;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="eyebrow" style="--dot: var(--sky)">Trước và sau</div>
+    <h1 class="headline sm">Đổi cách làm, <span class="accent">khác hẳn</span></h1>
+
+    <div class="duel">
+      <div class="side bad">
+        <div class="side-head"><div class="sq xs gold"><img src="../shared/emoji/hourglass_done.png" alt=""></div><p class="side-label">Đọc tin thủ công</p></div>
+        <ul>
+          <li>Mở 6 nguồn, lướt 45 phút</li>
+          <li>Trôi mất tin quan trọng</li>
+          <li>Ngày bận là bỏ luôn</li>
+        </ul>
+      </div>
+
+      <span class="link-note accent">đổi sang</span>
+      <svg class="link-svg" viewBox="0 0 220 150">
+        <path class="l-line" d="M 190 10 C 230 60, 180 110, 120 132"/>
+        <path class="l-head" d="M 152 138 L 118 134 L 138 106"/>
+      </svg>
+
+      <div class="side good">
+        <div class="side-head"><div class="sq xs lav"><img src="../shared/emoji/high_voltage.png" alt=""></div><p class="side-label">Agent đọc giúp</p></div>
+        <ul>
+          <li>Báo cáo sẵn lúc 8 giờ sáng</li>
+          <li>Chỉ tin mới trong 24 giờ</li>
+          <li>Đọc xong trong 2 phút</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 6.5;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    for (const sel of ['.l-line', '.l-head']) {
+      const p = document.querySelector(sel);
+      const len = p.getTotalLength();
+      gsap.set(p, { strokeDasharray: len, strokeDashoffset: len });
+    }
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .10)
+      .fromTo('.headline', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .26)
+      .fromTo('.side.bad', { opacity: 0, y: 44, rotation: -4 }, { opacity: 1, y: 0, rotation: -1.3, duration: .55, ease: EASE }, .62);
+
+    // "đổi sang" + mũi tên vẽ tay, rồi card tốt vào với cú nảy tự tin hơn
+    tl.fromTo('.link-note', { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, 1.35)
+      .to('.l-line', { strokeDashoffset: 0, duration: .45, ease: 'power1.inOut' }, 1.5)
+      .to('.l-head', { strokeDashoffset: 0, duration: .2, ease: 'power1.out' }, 1.93)
+      .fromTo('.side.good', { opacity: 0, y: 54, rotation: 3.4, scale: .97 }, { opacity: 1, y: 0, rotation: 0.8, scale: 1, duration: .6, ease: 'back.out(1.4)' }, 2.05);
+
+    // Idle: card tốt thở nhẹ
+    tl.to('.side.good', { y: -8, duration: 1.1, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 2.9);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h08-compare-doodle'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

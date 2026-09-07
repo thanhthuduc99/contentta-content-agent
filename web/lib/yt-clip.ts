@@ -4,18 +4,22 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { MEDIA_DIR } from "./paths";
 
-// winget cài yt-dlp nhưng PATH mới chỉ có sau logon → thử đường dẫn winget trước (giống api/download).
+// Thứ tự dò: YT_DLP_PATH trong .env → đường dẫn winget (PATH mới chỉ có sau logon)
+// → tên lệnh trên PATH. Dùng chung cho api/download.
 const WINGET_YTDLP = path.join(
   process.env.LOCALAPPDATA || "",
   "Microsoft/WinGet/Packages/yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe/yt-dlp.exe"
 );
-const YTDLP = existsSync(WINGET_YTDLP) ? WINGET_YTDLP : "yt-dlp.exe";
+const FALLBACK_YTDLP = process.platform === "win32" ? "yt-dlp.exe" : "yt-dlp";
+export const YTDLP =
+  process.env.YT_DLP_PATH?.trim() ||
+  (existsSync(WINGET_YTDLP) ? WINGET_YTDLP : FALLBACK_YTDLP);
 
 // KHÔNG dùng --download-sections: m3u8 của YouTube giờ trả file rỗng (262B, PO token/SABR),
 // còn DASH cắt đoạn sâu trong video thì chậm tới mức timeout (đo thật 2026-08-31).
 // → Tải NGUYÊN video 1 lần vào cache theo videoId, rồi cắt local bằng ffmpeg.
 // Cache dùng chung cho cả post (1 clip) lẫn build video dọc (2-3 đoạn thao tác).
-export const YT_CACHE_DIR = path.join(MEDIA_DIR, "_ytcache");
+export const YT_CACHE_DIR = process.env.YT_CACHE_DIR?.trim() || path.join(MEDIA_DIR, "_ytcache");
 
 function run(cmd: string, args: string[], timeoutMs: number, label: string): Promise<void> {
   return new Promise((resolve, reject) => {

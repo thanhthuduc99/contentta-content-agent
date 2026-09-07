@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v15 — Comment X + cursor click Follow (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 76px; }
+
+  .headline { text-align: center; opacity: 0; }
+
+  .cta-stack { position: relative; display: flex; flex-direction: column; align-items: center; }
+
+  /* ---- Follow button: icon-only state swap (plus -> check), label giữ nguyên "Follow" ---- */
+  .follow-btn {
+    position: relative; display: inline-flex; align-items: center; gap: 16px;
+    padding: 24px 52px; border-radius: 999px;
+    border: 2px solid transparent;
+    background: var(--plum); color: #fff;
+    font-size: 40px; font-weight: 700; letter-spacing: -.01em;
+    box-shadow: 0 16px 36px rgba(74,58,224,.34);
+    opacity: 0;
+  }
+  .follow-btn .icon-wrap { position: relative; width: 32px; height: 32px; flex: none; }
+  .icon-plus, .icon-check { position: absolute; inset: 0; }
+  .icon-plus::before, .icon-plus::after { content: ''; position: absolute; background: currentColor; border-radius: 2px; }
+  .icon-plus::before { left: 50%; top: 0; width: 4px; height: 100%; margin-left: -2px; }
+  .icon-plus::after  { top: 50%; left: 0; width: 100%; height: 4px; margin-top: -2px; }
+  .icon-check { opacity: 0; }
+  .icon-check::before, .icon-check::after { content: ''; position: absolute; background: currentColor; border-radius: 2px; }
+  .icon-check::before { left: 2px; top: 15px; width: 14px; height: 4px; transform: rotate(45deg); transform-origin: left center; }
+  .icon-check::after  { left: 10px; top: 20px; width: 22px; height: 4px; transform: rotate(-45deg); transform-origin: left center; }
+
+  /* ---- Cursor: mũi tên vẽ bằng CSS (clip-path), không icon hệ thống ---- */
+  .cursor {
+    position: absolute; left: 0; top: 0; width: 50px; height: 50px;
+    z-index: 30; opacity: 0; pointer-events: none;
+    filter: drop-shadow(0 8px 14px rgba(23,19,13,.30));
+  }
+  .cursor-outline, .cursor-fill {
+    position: absolute; inset: 0;
+    clip-path: polygon(0% 0%, 0% 68%, 24% 54%, 40% 88%, 57% 80%, 39% 47%, 68% 47%);
+  }
+  .cursor-outline { background: var(--ink); transform: scale(1.16); transform-origin: 4% 2%; }
+  .cursor-fill { background: #fff; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <h1 class="headline xl">Comment <span class="accent">X</span></h1>
+
+    <div class="cta-stack">
+      <div class="follow-btn">
+        <span class="icon-wrap">
+          <span class="icon-plus"></span>
+          <span class="icon-check"></span>
+        </span>
+        Follow
+      </div>
+
+      <div class="cursor">
+        <div class="cursor-outline"></div>
+        <div class="cursor-fill"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 4.2;
+    const stack   = document.querySelector('.cta-stack');
+    const cursor  = document.querySelector('.cursor');
+    const followBtn = document.querySelector('.follow-btn');
+    const iconPlus = document.querySelector('.icon-plus');
+    const iconCheck = document.querySelector('.icon-check');
+
+    // Cursor tip (góc 0,0) nhắm vào tâm-lệch-trái-trên của nút Follow, đo bằng
+    // getBoundingClientRect() relative tới .cta-stack (cùng offsetParent).
+    // Đo sau document.fonts.ready để không lệch toạ độ do font fallback.
+    function targetFor(el, dx, dy) {
+      const stackRect = stack.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return {
+        x: (r.left - stackRect.left) + r.width * dx,
+        y: (r.top - stackRect.top) + r.height * dy,
+      };
+    }
+
+    const pFollow = targetFor(followBtn, 0.30, 0.42);
+    const pStart  = { x: pFollow.x + 90, y: pFollow.y + 170 };
+
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    // Headline + nút Follow xuất hiện
+    tl.fromTo('.headline', { opacity: 0, y: 46 }, { opacity: 1, y: 0, duration: .58, ease: 'back.out(1.3)' }, .10)
+      .fromTo('.follow-btn', { opacity: 0, y: 22, scale: .92 }, { opacity: 1, y: 0, scale: 1, duration: .46, ease: EASE }, .78);
+
+    // Cursor hiện gần nút, bay tới bấm
+    tl.set(cursor, { x: pStart.x, y: pStart.y })
+      .to(cursor, { opacity: 1, duration: .22 }, 1.30)
+      .to(cursor, { x: pFollow.x, y: pFollow.y, duration: .52, ease: 'power2.inOut' }, 1.48);
+
+    // Click Follow: cursor nén nhẹ + nút nén nhẹ, icon plus -> check, nền plum -> trắng/outline
+    tl.to(cursor, { scale: .8, duration: .10, ease: 'power1.in' }, 2.10)
+      .to(cursor, { scale: 1, duration: .16, ease: 'back.out(2)' }, 2.20)
+      .to(followBtn, { scale: .95, duration: .10, ease: 'power1.in' }, 2.10)
+      .to(followBtn, { scale: 1, duration: .20, ease: 'back.out(2)' }, 2.20)
+      .to(followBtn, { backgroundColor: '#FFFFFF', color: '#4A3AE0', borderColor: 'rgba(23,19,13,.14)', boxShadow: '0 4px 14px rgba(23,19,13,.08)', duration: .34, ease: EASE }, 2.22)
+      .to(iconPlus, { opacity: 0, duration: .2 }, 2.22)
+      .to(iconCheck, { opacity: 1, duration: .2 }, 2.22);
+
+    // Nút "đã follow" nảy nhẹ giữ nhịp, cursor lùi ra rồi mờ
+    tl.to(followBtn, { scale: 1.04, duration: .6, ease: 'sine.inOut', yoyo: true, repeat: 1 }, 2.7)
+      .to(cursor, { x: pStart.x, y: pStart.y, opacity: 0, duration: .5, ease: 'power2.in' }, 3.1);
+
+    tl.set({}, {}, DUR);
+
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['v15-follow-comment'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

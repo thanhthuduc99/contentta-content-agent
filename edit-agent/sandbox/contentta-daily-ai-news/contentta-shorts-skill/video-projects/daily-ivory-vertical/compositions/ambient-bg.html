@@ -1,0 +1,29 @@
+<template id="ambient-bg-template">
+  <div data-composition-id="ambient-bg" data-start="0" data-width="1080" data-height="1920" data-duration="60">
+    <div class="amb-plate"></div>
+    <style>
+      /* Nền 4 lớp đã bake sẵn thành bg-vertical.png.
+         Lý do: blur(90px) trên 4 orb ở khung 1080x1920 làm renderer rất chậm khi
+         chụp hàng nghìn frame. Nền tĩnh nên bake không mất gì. Sinh lại bằng:
+         node ../../templates-vertical-ivory/render-preview.mjs bake */
+      [data-composition-id="ambient-bg"] { position: absolute; inset: 0; background: #FAF6EF; }
+      [data-composition-id="ambient-bg"] .amb-plate {
+        position: absolute; inset: 0;
+        background-image: url('assets/bg-vertical.png');
+        background-size: 1080px 1920px;
+        background-repeat: no-repeat;
+      }
+    </style>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script>
+      (function () {
+        // Lop tinh, khong co animation. Van phai dang ky timeline cho renderer.
+        const tl = gsap.timeline({ paused: true });
+        tl.set({}, {}, 60.71);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["ambient-bg"] = tl;
+      })();
+    </script>
+
+  </div>
+</template>

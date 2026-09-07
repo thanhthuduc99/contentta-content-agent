@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>Chợ plugin Claude Code · Contentta Daily News</title>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <link rel="stylesheet" href="assets/fonts/brand-fonts.css" />
+    <link rel="stylesheet" href="assets/base-vertical.css" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { margin: 0; width: 1080px; height: 1920px; overflow: hidden; background: #FAF6EF; font-family: "Be Vietnam Pro", sans-serif; color: #17130D; }
+      .scene-layer { position: absolute; top: 0; left: 0; width: 1080px; height: 1920px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="48.67" data-width="1080" data-height="1920">
+
+      <!-- Nền ivory 4 lớp, đã bake sẵn thành PNG -->
+      <div id="ambient-bg" class="scene-layer" data-composition-id="ambient-bg" data-composition-src="compositions/ambient-bg.html" data-start="0" data-duration="48.67" data-track-index="0" data-width="1080" data-height="1920"></div>
+
+      <!-- Giọng đọc (OpenAI gpt-4o-mini-tts, onyx, atempo 1.15) -->
+      <audio id="voice" data-start="0" data-duration="48.67" data-track-index="4" data-volume="1" src="assets/voice.mp3"></audio>
+      <!-- Nhạc nền -->
+      <audio id="music" data-start="0" data-duration="48.67" data-track-index="5" data-volume="0.14" src="assets/music.mp3"></audio>
+
+      <!-- Scene 1 — Title: chợ plugin (0 – 6.06) -->
+      <div id="scene-1" class="scene-layer" data-composition-id="s1-title" data-composition-src="compositions/scene1-title.html" data-start="0" data-duration="6.04" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Scene 2 — 822 sao (6.06 – 10.90) -->
+      <div id="scene-2" class="scene-layer" data-composition-id="s2-number" data-composition-src="compositions/scene2-number.html" data-start="6.06" data-duration="4.82" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Scene 3 — Ảnh thật repo (10.90 – 20.38) -->
+      <div id="scene-3" class="scene-layer" data-composition-id="s3-shot" data-composition-src="compositions/scene3-shot.html" data-start="10.90" data-duration="9.46" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Scene 4 — Ba thứ đáng chú ý (20.38 – 38.54), card canh theo giọng -->
+      <div id="scene-4" class="scene-layer" data-composition-id="s4-points" data-composition-src="compositions/scene4-points.html" data-start="20.38" data-duration="18.14" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Scene 5 — Lệnh cài (38.54 – 42.90) -->
+      <div id="scene-5" class="scene-layer" data-composition-id="s5-cmd" data-composition-src="compositions/scene5-cmd.html" data-start="38.54" data-duration="4.34" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Scene 6 — CTA (42.90 – 48.67) -->
+      <div id="scene-6" class="scene-layer" data-composition-id="s6-cta" data-composition-src="compositions/scene6-cta.html" data-start="42.90" data-duration="5.77" data-track-index="2" data-width="1080" data-height="1920"></div>
+
+      <!-- Caption karaoke ivory: chữ ink, từ đang đọc plum -->
+      <div id="captions" class="scene-layer" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="48.67" data-track-index="3" data-width="1080" data-height="1920"></div>
+
+      <!-- Grain phủ trên cùng -->
+      <div id="grain-overlay" class="scene-layer" data-composition-id="grain-overlay" data-composition-src="compositions/grain-overlay.html" data-start="0" data-duration="48.67" data-track-index="99" data-width="1080" data-height="1920"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const mainTl = gsap.timeline({ paused: true });
+      mainTl.set({}, {}, 48.67);
+      window.__timelines["main"] = mainTl;
+    </script>
+  </body>
+</html>

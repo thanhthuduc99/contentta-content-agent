@@ -4,17 +4,16 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { zernioPublish, type Platform } from "./zernio-publish";
 import { generateVideoCaption } from "./claude";
-import { mediaDirFor } from "./paths";
+import { mediaDirFor, REPO_ROOT } from "./paths";
 import { getAccountMap } from "./zernio";
 import { createNativeAutomation } from "./comment-automations";
 import { createYoutubeSearchReplyRule } from "./auto-react";
 import { deriveKeyword, extractGithubLink, isValidKeyword, KEYWORD_MAX } from "./daily-news-keyword";
 
 // Edit Agent pipeline gốc — giữ nguyên vị trí, gọi qua child_process thay vì copy code.
-// Nếu di chuyển edit-agent, chỉ cần sửa hằng số này.
-const EDIT_AGENT_ROOT = path.join(
-  "D:", "thanh", "CONTENTTA AGENCY", "6. AI Agent", "edit-agent"
-);
+// Mặc định là edit-agent/ trong repo; đặt EDIT_AGENT_ROOT nếu để ở nơi khác.
+const EDIT_AGENT_ROOT =
+  process.env.EDIT_AGENT_ROOT?.trim() || path.join(REPO_ROOT, "edit-agent");
 export const DAILY_NEWS_DIR = path.join(EDIT_AGENT_ROOT, "sandbox", "contentta-daily-ai-news");
 // Sandbox video dọc TÓM TẮT VIDEO YOUTUBE — cùng hạ tầng queue với daily-news
 // (bắt buộc chung hàng đợi: 2 claude headless song song đá nhau khỏi phiên OAuth).
@@ -51,7 +50,12 @@ const YS_PROJECTS = path.join(YT_SUMMARY_DIR, "video-projects");
 const DN_JOBS = path.join(DN_PROJECTS, "_jobs");
 const MAX_CONCURRENT = Math.max(1, Number(process.env.DAILY_NEWS_MAX_CONCURRENT) || 1);
 // Model của agent build video (dùng chung cho dn-* lẫn ys-*).
-const BUILD_MODEL = "claude-opus-5";
+const BUILD_MODEL = process.env.DAILY_NEWS_BUILD_MODEL?.trim() || "claude-opus-5";
+// CTA mời vào group ở cuối video yt-summary. Điền GROUP_CTA_* trong .env, để trống là bỏ CTA group.
+export const GROUP_CTA = {
+  url: process.env.GROUP_CTA_URL?.trim() || "",
+  name: process.env.GROUP_CTA_NAME?.trim() || "",
+};
 
 // 2 loại job chung 1 hàng đợi (_jobs trong daily-news), phân biệt bằng prefix slug:
 // dn-* = daily-news · ys-* = yt-summary. Project dir mỗi loại nằm ở sandbox riêng.
@@ -193,7 +197,7 @@ Khi xong, in DÒNG CUỐI: "DONE video-projects/${slug}/renders/final.mp4".`;
 // cắt từ video gốc, CTA mời group (mặc định AI Automation Academy).
 function buildYtSummaryPrompt(job: DnJob): string {
   const slug = job.slug;
-  const groupName = job.groupName || "AI Automation Academy";
+  const groupName = job.groupName || GROUP_CTA.name;
   const tool = (f: string) => path.join(YT_SUMMARY_DIR, "tools", f);
   return `Bạn là editor Contentta, chạy HEADLESS (không có người trả lời). TUYỆT ĐỐI KHÔNG hỏi lại — tự quyết mọi thứ và chạy tới khi ra final.mp4. Không dừng giữa chừng.
 
@@ -260,12 +264,12 @@ export async function enqueueYtSummaryBuild(params: {
   groupName?: string;
 }): Promise<{ slug: string }> {
   if ((process.env.DAILY_NEWS_BUILD_ENABLED || "").trim() !== "1") {
-    throw new InvalidEditParamError("Tính năng build đang TẮT. Đặt DAILY_NEWS_BUILD_ENABLED=1 trong web/.env để bật.");
+    throw new InvalidEditParamError("Tính năng build đang TẮT. Đặt DAILY_NEWS_BUILD_ENABLED=1 trong .env để bật.");
   }
   const slug = assertSlug(`ys-${Date.now()}`, "slug");
   const projDir = dnProjectDir(slug);
-  const groupUrl = (params.groupUrl || "https://www.facebook.com/groups/aiauacademy").trim();
-  const groupName = (params.groupName || "AI Automation Academy").trim();
+  const groupUrl = (params.groupUrl || GROUP_CTA.url).trim();
+  const groupName = (params.groupName || GROUP_CTA.name).trim();
   await fs.mkdir(path.join(projDir, "assets"), { recursive: true });
   const hasThumb = await saveThumbnail(params.videoId, path.join(projDir, "assets", "media", "thumb.jpg"));
   await fs.writeFile(
@@ -316,7 +320,7 @@ export function assertInfo(v: string): string {
 // Xếp job vào hàng đợi rồi trả slug ngay. Runner quyết định lúc nào spawn thật.
 export async function enqueueDailyNewsBuild(info: string, keyword: string): Promise<{ slug: string }> {
   if ((process.env.DAILY_NEWS_BUILD_ENABLED || "").trim() !== "1") {
-    throw new InvalidEditParamError("Tính năng build daily-news đang TẮT. Đặt DAILY_NEWS_BUILD_ENABLED=1 trong web/.env để bật.");
+    throw new InvalidEditParamError("Tính năng build daily-news đang TẮT. Đặt DAILY_NEWS_BUILD_ENABLED=1 trong .env để bật.");
   }
   const cleanInfo = assertInfo(info);
   const kw = (keyword || "").trim().toLowerCase();

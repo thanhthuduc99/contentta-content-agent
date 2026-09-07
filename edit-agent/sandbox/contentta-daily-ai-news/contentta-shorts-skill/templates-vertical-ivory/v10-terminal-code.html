@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v10 — Terminal / code (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 42px; }
+  .head { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .eyebrow { opacity: 0; }
+  .headline { text-align: center; opacity: 0; }
+
+  .term { width: 936px; opacity: 0; }
+  /* .term pre 28px mono = 56 cột (đo thật). Không viết dòng dài hơn. */
+  .term pre .row { display: block; opacity: 0; }
+
+  .cap { text-align: center; font-size: 27px; color: var(--ink-soft); opacity: 0; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--sage)">Chạy thử trong 1 phút</div>
+      <h2 class="headline sm">Ba dòng là xong</h2>
+    </div>
+
+    <div class="term">
+      <div class="term-bar"><i></i><i></i><i></i>&nbsp;&nbsp;bash</div>
+      <pre><span class="row"><span class="tok-dim">$</span> pip <span class="tok-key">install</span> openviking</span>
+<span class="row"><span class="tok-dim">$</span> openviking <span class="tok-key">init</span> <span class="tok-str">--store ./memory</span></span>
+<span class="row"><span class="tok-dim">$</span> openviking <span class="tok-key">serve</span> <span class="tok-str">--port 8080</span></span>
+<span class="row"></span>
+<span class="row"><span class="tok-ok">ok</span> <span class="tok-dim">store ready · 0 docs · 0 skills</span></span>
+<span class="row"><span class="tok-ok">ok</span> <span class="tok-dim">listening on http://127.0.0.1:8080</span></span></pre>
+    </div>
+
+    <p class="cap">Agent trỏ vào cổng này là có bộ nhớ dùng chung</p>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 6.5;
+  const tl = gsap.timeline({ paused: true });
+  const EASE = 'power3.out';
+
+  tl.fromTo('.eyebrow',  { opacity: 0, y: 18 },             { opacity: 1, y: 0, duration: .4, ease: EASE }, 0)
+    .fromTo('.headline', { opacity: 0, y: 26 },             { opacity: 1, y: 0, duration: .5, ease: EASE }, .14)
+    .fromTo('.term',     { opacity: 0, y: 40, scale: .97 }, { opacity: 1, y: 0, scale: 1, duration: .6, ease: EASE }, .44)
+    // Dòng lệnh hiện lần lượt như đang gõ, nhưng bằng opacity nên vẫn deterministic
+    .fromTo('.term pre .row', { opacity: 0, x: -14 },       { opacity: 1, x: 0, duration: .3, ease: 'power2.out', stagger: .3 }, .92)
+    .fromTo('.cap',      { opacity: 0, y: 20 },             { opacity: 1, y: 0, duration: .45, ease: EASE }, 3.10);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v10-terminal-code'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

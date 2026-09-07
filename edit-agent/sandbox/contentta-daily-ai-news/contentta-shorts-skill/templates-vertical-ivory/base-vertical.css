@@ -1,0 +1,312 @@
+/* Contentta motion graphics — base layer for 1080x1920 VERTICAL video compositions.
+   Port của shared/base.css (1920x1080). Token màu/shadow giữ nguyên 100%.
+   Đổi: khung, padding, nền 4 lớp, type scale (đọc trên phone), + motion token.
+   Tokens mirror: Obsidian/thanh/Business/Contentta/_context/INFRASTRUCTURE/Contentta Design System/tokens/ */
+
+:root {
+  --ivory: #FAF6EF;
+  --ivory-deep: #F3ECE0;
+  --paper: #FFFFFF;
+
+  --ink: #17130D;
+  --ink-soft: #4A4339;
+  --ink-muted: #8A8073;
+  --ink-faint: #BDB4A6;
+
+  --line: rgba(23, 19, 13, 0.09);
+  --line-strong: rgba(23, 19, 13, 0.14);
+
+  --lavender: #B7A8FF;
+  --peach: #FFB39C;
+  --sky: #9AD0FF;
+  --sage: #A9E0C2;
+  --gold: #E6B45A;
+
+  --plum: #4A3AE0;
+  --plum-2: #7B6CFF;
+
+  --green-deep: #14794C;
+
+  --shadow-soft:
+    0 1px 2px rgba(23, 19, 13, 0.04),
+    0 8px 24px rgba(23, 19, 13, 0.06),
+    0 24px 60px rgba(23, 19, 13, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-lift:
+    0 2px 4px rgba(23, 19, 13, 0.05),
+    0 16px 40px rgba(23, 19, 13, 0.10),
+    0 40px 90px rgba(23, 19, 13, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* ---- MOTION (DS tokens/motion.css) ----
+     Chỉ animate transform + opacity. Soft expo easing. Parallax nhẹ. */
+  --ease:       cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast:   0.25s;
+  --dur-base:   0.4s;
+  --dur-slow:   0.9s;
+  --stagger-1:  0.08s;
+  --stagger-2:  0.16s;
+  --stagger-3:  0.24s;
+  --stagger-4:  0.32s;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  width: 1080px; height: 1920px;
+  overflow: hidden;
+  background: var(--ivory);
+}
+
+.stage {
+  position: relative;
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: var(--ivory);
+  font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Background layer 1: warm gradient orbs — bố cục lại cho khung dọc */
+.bg-orbs { position: absolute; inset: -200px; pointer-events: none; }
+.orb { position: absolute; border-radius: 50%; filter: blur(90px); }
+.orb.o1 { width: 820px;  height: 820px;  left: -60px;   top: 300px;    background: radial-gradient(circle, rgba(255,179,156,.62), transparent 70%); }
+.orb.o2 { width: 940px;  height: 940px;  right: -120px; top: 40px;     background: radial-gradient(circle, rgba(230,180,90,.40), transparent 70%); }
+.orb.o3 { width: 880px;  height: 880px;  right: -80px;  bottom: 260px; background: radial-gradient(circle, rgba(183,168,255,.36), transparent 70%); }
+.orb.o4 { width: 760px;  height: 760px;  left: -40px;   bottom: 40px;  background: radial-gradient(circle, rgba(255,214,190,.50), transparent 70%); }
+
+/* Background layer 2: confetti dots.
+   Một element, 22 box-shadow cố định — deterministic, zero markup.
+   Toạ độ trải theo khung 1080x1920, né dải nội dung chính. */
+.bg-dots {
+  position: absolute; top: 0; left: 0; width: 8px; height: 8px;
+  border-radius: 50%; background: transparent; pointer-events: none; opacity: .55;
+  box-shadow:
+      88px   150px 0 0px  #FFB39C,   306px    96px 0 -2px #B7A8FF,
+     560px    62px 0 1px  #E6B45A,   812px   148px 0 -1px #A9E0C2,
+    1006px   214px 0 0px  #FFB39C,    62px   360px 0 -2px #9AD0FF,
+     428px   268px 0 1px  #B7A8FF,   960px   392px 0 0px  #E6B45A,
+     150px   540px 0 -1px #FFB39C,  1020px   598px 0 1px  #9AD0FF,
+      44px   690px 0 -1px #A9E0C2,   612px   238px 0 0px  #E6B45A,
+    1032px   830px 0 1px  #B7A8FF,    36px  1080px 0 -1px #FFB39C,
+    1044px  1210px 0 0px  #A9E0C2,    70px  1330px 0 -2px #E6B45A,
+     262px  1512px 0 1px  #9AD0FF,   880px  1470px 0 -1px #B7A8FF,
+     520px  1660px 0 0px  #FFB39C,  1000px  1742px 0 -2px #E6B45A,
+     176px  1806px 0 -2px #FFD6BE,   736px  1868px 0 -2px #C4B6FF;
+}
+
+/* Background layer 3: perspective floor — thấp hơn bản ngang để không đụng caption */
+.bg-floor {
+  position: absolute; left: -60%; right: -60%; bottom: 0; height: 360px;
+  pointer-events: none; opacity: .9;
+  transform: perspective(600px) rotateX(74deg);
+  transform-origin: bottom center;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 106px, rgba(23,19,13,.16) 106px 109px),
+    repeating-linear-gradient(0deg,  transparent 0 78px,  rgba(23,19,13,.11) 78px 81px);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.35) 45%, transparent 82%);
+          mask-image: linear-gradient(to top, #000 0%, rgba(0,0,0,.35) 45%, transparent 82%);
+}
+
+/* Background layer 4: film grain (DS: ~4-5%, multiply) */
+.bg-grain {
+  position: absolute; inset: 0; pointer-events: none;
+  opacity: .05; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Content shell — safe zone dọc.
+   Trên 240 (UI platform + username), dưới 360 (caption strip 1620-1780 + nút tương tác).
+   Content box thực dùng: 936 x 1320. */
+.content {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column;
+  width: 100%; height: 100%;
+  padding: 240px 72px 360px;
+}
+
+/* Eyebrow pill */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 14px;
+  align-self: center;
+  padding: 14px 32px 14px 26px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-shadow: 0 2px 10px rgba(23,19,13,.05);
+  font-size: 26px; font-weight: 600;
+  letter-spacing: .18em; text-transform: uppercase;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.eyebrow::before {
+  content: ''; width: 11px; height: 11px; border-radius: 50%;
+  background: var(--dot, var(--peach));
+}
+
+/* Headline */
+.headline {
+  margin: 0;
+  font-family: 'Bricolage Grotesque', 'Be Vietnam Pro', sans-serif;
+  font-weight: 800;
+  font-size: 76px;
+  line-height: 1.16;
+  letter-spacing: -.035em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.headline.xl { font-size: 96px; line-height: 1.1; }
+.headline.sm { font-size: 62px; line-height: 1.2; }
+.accent {
+  font-family: 'Lora', Georgia, serif;
+  font-style: italic; font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--plum);
+}
+.accent.peach { color: #C4552B; }
+.accent.gold  { color: #A87516; }
+.sub {
+  margin: 0; font-size: 34px; font-weight: 400;
+  line-height: 1.48; color: var(--ink-soft);
+}
+
+/* Card */
+.card {
+  position: relative;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: var(--shadow-soft);
+  padding: 36px;
+}
+.card-label {
+  margin: 0; font-size: 34px; font-weight: 600;
+  line-height: 1.3; letter-spacing: -.005em; color: var(--ink);
+}
+.card-note {
+  margin: 8px 0 0; font-size: 26px; font-weight: 400;
+  line-height: 1.4; color: var(--ink-soft);
+}
+
+/* Icon squircle (3D tile giữ Fluent emoji PNG) */
+.sq {
+  display: grid; place-items: center;
+  width: 104px; height: 104px; border-radius: 28px;
+  background: linear-gradient(160deg, var(--sq-a), var(--sq-b));
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.55),
+    inset 0 -3px 8px rgba(0,0,0,.14),
+    0 10px 22px var(--sq-glow, rgba(23,19,13,.18));
+}
+.sq img { width: 62px; height: 62px; display: block; }
+.sq.lg { width: 180px; height: 180px; border-radius: 48px; }
+.sq.lg img { width: 108px; height: 108px; }
+.sq.sm { width: 84px; height: 84px; border-radius: 24px; }
+.sq.sm img { width: 50px; height: 50px; }
+.sq.xs { width: 60px; height: 60px; border-radius: 18px; }
+.sq.xs img { width: 36px; height: 36px; }
+
+.sq.peach { --sq-a: #FFC7A9; --sq-b: #E2643A; --sq-glow: rgba(226,100,58,.30); }
+.sq.sage  { --sq-a: #B6E9CB; --sq-b: #2F9166; --sq-glow: rgba(47,145,102,.30); }
+.sq.lav   { --sq-a: #C4B6FF; --sq-b: #5B47E0; --sq-glow: rgba(91,71,224,.30); }
+.sq.sky   { --sq-a: #AEDBFF; --sq-b: #2E7FC8; --sq-glow: rgba(46,127,200,.30); }
+.sq.gold  { --sq-a: #F2CE87; --sq-b: #C2851A; --sq-glow: rgba(194,133,26,.30); }
+.sq.rose  { --sq-a: #FFB3C4; --sq-b: #D8355F; --sq-glow: rgba(216,53,95,.30); }
+
+/* Numbered badge */
+.badge {
+  position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
+  display: grid; place-items: center;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: var(--badge-bg, var(--plum));
+  color: #fff; font-size: 28px; font-weight: 700;
+  border: 4px solid var(--ivory);
+  box-shadow: 0 4px 12px rgba(23,19,13,.18);
+}
+
+/* Result pill (chip kết quả xanh) */
+.result {
+  display: inline-flex; align-items: center; gap: 16px;
+  padding: 26px 44px; border-radius: 22px;
+  background: var(--green-deep);
+  color: #fff; font-size: 44px; font-weight: 700; letter-spacing: -.02em;
+  box-shadow: 0 12px 34px rgba(20,121,76,.34), inset 0 2px 0 rgba(255,255,255,.22);
+}
+.result img { width: 42px; height: 42px; }
+
+/* Operators */
+.op { font-size: 56px; font-weight: 700; color: var(--ink-faint); line-height: 1; }
+
+/* Real-image containers */
+.shot {
+  border-radius: 20px; overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lift);
+  background: var(--paper);
+}
+.shot-bar {
+  display: flex; align-items: center; gap: 11px;
+  height: 54px; padding: 0 22px;
+  background: var(--ivory-deep);
+  border-bottom: 1px solid var(--line);
+}
+.shot-bar i { width: 14px; height: 14px; border-radius: 50%; background: var(--ink-faint); }
+.shot img { display: block; width: 100%; }
+
+.logo-tile {
+  display: grid; place-items: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 26px;
+  box-shadow: var(--shadow-soft);
+  padding: 32px;
+}
+.logo-tile img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+.photo-card img { display: block; width: 100%; border-radius: 16px; }
+
+/* Callout (chip ink chú thích vào ảnh thật) */
+.callout {
+  display: inline-flex; align-items: center; gap: 14px;
+  padding: 18px 30px; border-radius: 999px;
+  background: var(--ink); color: var(--ivory);
+  font-size: 30px; font-weight: 600; letter-spacing: -.01em;
+  box-shadow: 0 10px 26px rgba(23,19,13,.24);
+}
+
+/* Code / terminal block */
+.term {
+  border-radius: 22px; overflow: hidden;
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-lift);
+  background: var(--paper);
+}
+.term-bar {
+  display: flex; align-items: center; gap: 11px;
+  height: 58px; padding: 0 24px;
+  background: var(--ivory-deep); border-bottom: 1px solid var(--line);
+  font-size: 23px; font-weight: 600; color: var(--ink-soft);
+  letter-spacing: .04em;
+}
+.term-bar i { width: 14px; height: 14px; border-radius: 50%; background: var(--ink-faint); }
+.term pre {
+  margin: 0; padding: 32px 34px;
+  font-family: 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  font-size: 28px; line-height: 1.6; color: var(--ink-soft);
+  white-space: pre; tab-size: 2;
+}
+.tok-key { color: var(--plum); font-weight: 600; }
+.tok-str { color: #B0561F; }
+.tok-dim { color: var(--ink-faint); }
+.tok-ok  { color: var(--green-deep); font-weight: 600; }
+
+/* Progress rail (chapter marker) */
+.rail { display: flex; gap: 12px; }
+.rail i { width: 68px; height: 10px; border-radius: 999px; background: var(--line-strong); }
+.rail i.on { background: var(--rail-on, var(--plum)); }
+
+.tabnum { font-variant-numeric: tabular-nums; }

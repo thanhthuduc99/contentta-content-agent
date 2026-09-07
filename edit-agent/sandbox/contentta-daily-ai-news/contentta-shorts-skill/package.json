@@ -1,0 +1,9 @@
+{
+  "name": "contentta-shorts-skill",
+  "version": "1.0.0",
+  "description": "Contentta short-form video editing skill for Claude Code + HyperFrames",
+  "private": true,
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
+}

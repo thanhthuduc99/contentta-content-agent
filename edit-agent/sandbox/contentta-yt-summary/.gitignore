@@ -1,0 +1,24 @@
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# Secrets - never commit
+.env
+.env.*
+!.env.example
+
+# Video build ra (scaffold van duoc track)
+/video-projects/*
+!/video-projects/.gitkeep
+!/video-projects/scaffold-yt-summary/
+
+# Cache video YouTube tai ve
+/.cache/
+
+# Media: bring your own, do not redistribute
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.mov

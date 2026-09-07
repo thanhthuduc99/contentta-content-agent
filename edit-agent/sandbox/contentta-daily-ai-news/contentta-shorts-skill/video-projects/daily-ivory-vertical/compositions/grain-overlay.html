@@ -1,0 +1,25 @@
+<template id="grain-overlay-template">
+  <div data-composition-id="grain-overlay" data-start="0" data-width="1080" data-height="1920" data-duration="60">
+    <div class="gr"></div>
+    <style>
+      /* DS: nhiễu ~5%, multiply. Cố định seed nên deterministic. */
+      [data-composition-id="grain-overlay"] { position: absolute; inset: 0; pointer-events: none; }
+      [data-composition-id="grain-overlay"] .gr {
+        position: absolute; inset: 0;
+        opacity: .05; mix-blend-mode: multiply;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch' seed='7'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+      }
+    </style>
+    <script src="assets/vendor/gsap.min.js"></script>
+    <script>
+      (function () {
+        // Lop tinh, khong co animation. Van phai dang ky timeline cho renderer.
+        const tl = gsap.timeline({ paused: true });
+        tl.set({}, {}, 60.71);
+        window.__timelines = window.__timelines || {};
+        window.__timelines["grain-overlay"] = tl;
+      })();
+    </script>
+
+  </div>
+</template>

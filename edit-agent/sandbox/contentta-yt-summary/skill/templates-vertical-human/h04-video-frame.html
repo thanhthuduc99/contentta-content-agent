@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h04 — Video frame (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  /* ============================================================
+     KHUNG VIDEO CỐ ĐỊNH — video thao tác là RAW TRACK nằm DƯỚI scene này.
+     Đặt <video> ở index.html với đúng hình học:
+       x=72  y=700  width=936  height=527  (16:9)
+     Scene chỉ vẽ viền + nhãn + mũi tên quanh Ô TRỐNG trong suốt đó.
+     ============================================================ */
+  .content { padding: 240px 0 360px; align-items: center; }
+
+  .head { width: 936px; display: flex; flex-direction: column; gap: 24px; align-items: flex-start; }
+  .head .headline { text-align: left; }
+
+  .vframe { position: absolute; left: 72px; top: 700px; width: 936px; height: 527px; }
+  .vframe .win { position: absolute; inset: 0; opacity: 0; }
+
+  /* Nhãn chip đè góc trên trái khung */
+  .vlabel {
+    position: absolute; left: 20px; top: -28px;
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 14px 26px; border-radius: 999px;
+    background: var(--ink); color: var(--ivory);
+    font-size: 27px; font-weight: 600;
+    box-shadow: 0 10px 26px rgba(23,19,13,.24);
+    opacity: 0;
+  }
+  .vlabel img { width: 30px; height: 30px; }
+
+  /* Mũi tên doodle vẽ tay chỉ vào khung, từ chú thích bên dưới */
+  .point-note {
+    position: absolute; left: 72px; top: 1290px; width: 936px;
+    display: flex; justify-content: center;
+  }
+  .point-note .accent { font-size: 40px; opacity: 0; display: inline-block; }
+  .arrow-svg { position: absolute; left: 560px; top: -108px; width: 200px; height: 110px; overflow: visible; }
+  .arrow-svg path { fill: none; stroke: var(--plum); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--sky)">Xem thao tác thật</div>
+      <h1 class="headline sm">Chạy thử ngay trong terminal</h1>
+    </div>
+
+    <div class="vframe">
+      <div class="win"></div>
+      <div class="vlabel"><img src="../shared/emoji/play_button.png" alt="">Demo từ video gốc</div>
+    </div>
+
+    <div class="point-note">
+      <span class="accent">chỗ này hay nè</span>
+      <svg class="arrow-svg" viewBox="0 0 200 110">
+        <path class="a-line" d="M18 102 C 70 96, 128 62, 150 18"/>
+        <path class="a-head" d="M128 34 L 150 16 L 158 44"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 8.0;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    const aLine = document.querySelector('.a-line');
+    const aHead = document.querySelector('.a-head');
+    for (const p of [aLine, aHead]) {
+      const len = p.getTotalLength();
+      gsap.set(p, { strokeDasharray: len, strokeDashoffset: len });
+    }
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .10)
+      .fromTo('.headline', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .24)
+      // Viền khung + nhãn vào sau để lộ video bên dưới trước 1 nhịp
+      .fromTo('.win', { opacity: 0, scale: .985 }, { opacity: 1, scale: 1, duration: .45, ease: EASE }, .55)
+      .fromTo('.vlabel', { opacity: 0, y: 16, rotation: -3 }, { opacity: 1, y: 0, rotation: 0, duration: .4, ease: 'back.out(1.5)' }, .85);
+
+    // Chú thích + mũi tên vẽ dần chỉ vào khung
+    tl.fromTo('.point-note .accent', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .45, ease: EASE }, 1.35)
+      .to(aLine, { strokeDashoffset: 0, duration: .5, ease: 'power1.inOut' }, 1.6)
+      .to(aHead, { strokeDashoffset: 0, duration: .22, ease: 'power1.out' }, 2.08);
+
+    // Idle: nhãn lắc rất nhẹ
+    tl.to('.vlabel', { rotation: -1.6, duration: 1.2, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 2.6);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h04-video-frame'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

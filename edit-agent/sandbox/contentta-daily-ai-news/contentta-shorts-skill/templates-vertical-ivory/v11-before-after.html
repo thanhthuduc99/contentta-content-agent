@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v11 — Before / after (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 32px; }
+  .head { display: flex; flex-direction: column; align-items: center; gap: 26px; }
+  .eyebrow { opacity: 0; }
+  .headline { text-align: center; opacity: 0; }
+
+  /* Khung dọc: trước ở trên, sau ở dưới. Bản ngang đặt trái/phải. */
+  .panel { width: 936px; padding: 30px 34px; opacity: 0; }
+  .panel.after { border-color: rgba(74,58,224,.28); }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 11px;
+    padding: 10px 20px; border-radius: 999px;
+    font-size: 23px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .tag.before { background: var(--ivory-deep); color: var(--ink-soft); }
+  .tag.after  { background: var(--plum); color: #fff; }
+
+  .lines { display: flex; flex-direction: column; gap: 11px; }
+  .li { display: flex; align-items: flex-start; gap: 15px; font-size: 29px; line-height: 1.34; color: var(--ink); opacity: 0; }
+  .li i {
+    flex: none; margin-top: 9px; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .panel.after .li i { background: var(--plum-2); }
+  .panel.before .li { color: var(--ink-soft); }
+
+  .mid { display: flex; align-items: center; justify-content: center; gap: 18px; opacity: 0; }
+  .mid .chevron {
+    width: 26px; height: 26px; border-right: 4px solid var(--ink-faint); border-bottom: 4px solid var(--ink-faint);
+    transform: rotate(45deg);
+  }
+  .mid span { font-size: 25px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="head">
+      <div class="eyebrow" style="--dot: var(--peach)">Khác chỗ nào</div>
+      <h2 class="headline sm">Trước và sau khi gắn</h2>
+    </div>
+
+    <div class="card panel before">
+      <span class="tag before">Trước</span>
+      <div class="lines">
+        <div class="li"><i></i>Mỗi phiên phải dán lại toàn bộ ngữ cảnh</div>
+        <div class="li"><i></i>Nạp cả kho tài liệu, tốn token vô ích</div>
+        <div class="li"><i></i>Mỗi agent giữ một bản skill riêng</div>
+      </div>
+    </div>
+
+    <div class="mid"><span class="chevron"></span><span>Sau khi gắn</span><span class="chevron"></span></div>
+
+    <div class="card panel after">
+      <span class="tag after">Sau</span>
+      <div class="lines">
+        <div class="li"><i></i>Agent tự lấy đúng phần ngữ cảnh cần</div>
+        <div class="li"><i></i>Truy hồi theo câu hỏi, không nạp thừa</div>
+        <div class="li"><i></i>Một kho skill, mọi agent dùng chung</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 6.5;
+  const tl = gsap.timeline({ paused: true });
+  const EASE = 'power3.out';
+
+  tl.fromTo('.eyebrow',       { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, 0)
+    .fromTo('.headline',      { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .14)
+    .fromTo('.panel.before',  { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, .46)
+    .fromTo('.panel.before .li', { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: .34, ease: EASE, stagger: .12 }, .66)
+    .fromTo('.mid',           { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: .36, ease: EASE }, 1.34)
+    .fromTo('.panel.after',   { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, 1.58)
+    .fromTo('.panel.after .li', { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: .34, ease: EASE, stagger: .12 }, 1.78);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v11-before-after'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

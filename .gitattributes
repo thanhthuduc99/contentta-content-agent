@@ -1,0 +1,7 @@
+* text=auto
+*.png binary
+*.jpg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp4 binary

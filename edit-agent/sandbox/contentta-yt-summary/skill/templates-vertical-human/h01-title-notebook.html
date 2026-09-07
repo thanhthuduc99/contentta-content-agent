@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>h01 — Title notebook (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 52px; }
+
+  /* Card giấy: tape dán 2 góc, hơi xoay như dán tay */
+  .paper {
+    position: relative;
+    width: 936px;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow-lift);
+    padding: 76px 64px 84px;
+    transform: rotate(-1.2deg);
+    opacity: 0;
+  }
+  .tape.t2 { left: auto; right: -46px; top: 30px; margin-left: 0; --tape-tilt: 42deg; }
+
+  /* .headline 76px trong box 808 = ~25 ký tự/dòng (hẹp hơn bảng đo 936 → trừ hao) */
+  .paper .headline { text-align: center; }
+
+  /* Gạch chân marker vẽ dần dưới cụm accent */
+  .under { position: relative; display: inline-block; }
+  .under svg { position: absolute; left: -2%; bottom: -20px; width: 104%; height: 34px; overflow: visible; }
+  .uline { fill: none; stroke: var(--plum); stroke-width: 9; stroke-linecap: round; }
+
+  .who { display: flex; align-items: center; gap: 18px; opacity: 0; }
+  .who .sq { flex: none; }
+  .who p { margin: 0; font-size: 30px; font-weight: 600; color: var(--ink-soft); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+
+  <div class="content">
+    <div class="eyebrow" style="--dot: var(--plum-2)">Tóm tắt video</div>
+
+    <div class="paper">
+      <div class="tape"></div>
+      <div class="tape t2"></div>
+      <h1 class="headline">Tự build agent <span class="under"><span class="accent">đọc tin AI</span><svg viewBox="0 0 400 30"><path class="uline" d="M6 20 C 90 10, 200 26, 394 14"/></svg></span> mỗi sáng cho bạn</h1>
+    </div>
+
+    <div class="who">
+      <div class="sq sm lav"><img src="../shared/emoji/light_bulb.png" alt=""></div>
+      <p>Rút gọn từ video 16 phút</p>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  async function init() {
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+
+    const DUR = 5.0;
+    const tl = gsap.timeline({ paused: true });
+    const EASE = 'power3.out';
+
+    // Nét gạch chân: vẽ dần bằng dashoffset
+    const uline = document.querySelector('.uline');
+    const ulen = uline.getTotalLength();
+    gsap.set(uline, { strokeDasharray: ulen, strokeDashoffset: ulen });
+
+    tl.fromTo('.eyebrow', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .4, ease: EASE }, .12)
+      // Giấy "đặt xuống bàn": rơi nhẹ + xoay về vị trí, hơi quá đà như tay dán
+      .fromTo('.paper',
+        { opacity: 0, y: 70, rotation: -4.5, scale: .96 },
+        { opacity: 1, y: 0, rotation: -1.2, scale: 1, duration: .62, ease: 'back.out(1.4)' }, .34)
+      .fromTo('.tape', { opacity: 0, scaleX: .2 }, { opacity: 1, scaleX: 1, duration: .3, ease: EASE, stagger: .1 }, .78)
+      // Marker gạch chân vẽ dần, tốc độ không đều như tay kéo
+      .to(uline, { strokeDashoffset: 0, duration: .55, ease: 'power1.inOut' }, 1.30)
+      .fromTo('.who', { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: .5, ease: EASE }, 1.9);
+
+    // Idle: giấy thở rất nhẹ
+    tl.to('.paper', { y: -8, rotation: -0.9, duration: 1.1, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 2.5);
+
+    tl.set({}, {}, DUR);
+    window.__TL = tl;
+    window.__DUR = DUR;
+    window.__timelines = window.__timelines || {};
+    window.__timelines['h01-title-notebook'] = tl;
+    window.__READY = true;
+  }
+  init();
+})();
+</script>
+</body>
+</html>

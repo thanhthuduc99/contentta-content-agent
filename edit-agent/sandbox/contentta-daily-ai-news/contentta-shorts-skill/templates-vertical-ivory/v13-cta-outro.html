@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>v13 — CTA outro (dọc 1080x1920)</title>
+<link rel="stylesheet" href="../shared/fonts/brand-fonts.css">
+<link rel="stylesheet" href="base-vertical.css">
+<style>
+  .content { align-items: center; justify-content: center; gap: 30px; }
+
+  .top {
+    display: inline-flex; align-items: center; gap: 14px;
+    padding: 15px 30px; border-radius: 999px;
+    background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+    font-size: 28px; font-weight: 600; color: var(--ink);
+    opacity: 0;
+  }
+  .top img { width: 32px; height: 32px; }
+
+  .ring {
+    position: absolute; left: 50%; top: 46%; width: 620px; height: 620px;
+    margin: -310px 0 0 -310px; border-radius: 50%;
+    border: 3px solid var(--plum-2); opacity: 0; z-index: 1;
+  }
+
+  .mark {
+    display: flex; justify-content: center;
+    font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800;
+    font-size: 108px; line-height: 1; letter-spacing: -.04em; color: var(--ink);
+  }
+  .mark .ch { display: inline-block; opacity: 0; }
+
+  .news {
+    font-family: 'Be Vietnam Pro', sans-serif; font-weight: 600;
+    font-size: 40px; letter-spacing: .34em; text-transform: uppercase;
+    color: var(--plum); opacity: 0;
+  }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 16px;
+    padding: 22px 38px; border-radius: 999px;
+    background: var(--ink); color: var(--ivory);
+    font-size: 31px; font-weight: 600;
+    box-shadow: 0 14px 34px rgba(23,19,13,.26);
+    opacity: 0; margin-top: 12px;
+  }
+  .pill img { width: 34px; height: 34px; }
+
+  .handle { font-size: 27px; color: var(--ink-soft); opacity: 0; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="bg-orbs"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="orb o4"></span></div>
+  <div class="bg-dots"></div>
+  <div class="bg-floor"></div>
+  <div class="bg-grain"></div>
+  <div class="ring"></div>
+
+  <div class="content">
+    <div class="top"><img src="../shared/emoji/high_voltage.png" alt="">Nhớ nhấn theo dõi</div>
+
+    <div class="mark">
+      <span class="ch">C</span><span class="ch">O</span><span class="ch">N</span><span class="ch">T</span><span class="ch">E</span><span class="ch">N</span><span class="ch">T</span><span class="ch">T</span><span class="ch">A</span>
+    </div>
+
+    <div class="news">Daily News</div>
+
+    <div class="pill"><img src="../shared/emoji/play_button.png" alt="">Tin AI mới mỗi ngày</div>
+
+    <div class="handle">Thành Vũ Đức</div>
+  </div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script>
+(function () {
+  const DUR = 5.0;
+  const tl = gsap.timeline({ paused: true });
+  const EASE = 'power3.out';
+
+  tl.fromTo('.top',      { opacity: 0, y: 20 },            { opacity: 1, y: 0, duration: .42, ease: EASE }, .10)
+    .fromTo('.mark .ch', { opacity: 0, y: 40, scale: .9 }, { opacity: 1, y: 0, scale: 1, duration: .4, ease: 'back.out(1.6)', stagger: .055 }, .52)
+    .fromTo('.ring',     { opacity: .85, scale: .34 },     { opacity: 0, scale: 2.3, duration: .85, ease: 'power2.out' }, .74)
+    .fromTo('.news',     { opacity: 0, y: 18 },            { opacity: 1, y: 0, duration: .4, ease: EASE }, 1.16)
+    .fromTo('.pill',     { opacity: 0, y: 24, scale: .94 },{ opacity: 1, y: 0, scale: 1, duration: .45, ease: 'back.out(1.5)' }, 1.44)
+    .fromTo('.handle',   { opacity: 0 },                   { opacity: 1, duration: .4, ease: EASE }, 1.82);
+
+  tl.to('.pill', { scale: 1.035, duration: .7, ease: 'sine.inOut', yoyo: true, repeat: 2 }, 2.3);
+
+  tl.set({}, {}, DUR);
+
+  window.__TL = tl;
+  window.__DUR = DUR;
+  window.__timelines = window.__timelines || {};
+  window.__timelines['v13-cta-outro'] = tl;
+  document.fonts.ready.then(() => { window.__READY = true; });
+})();
+</script>
+</body>
+</html>

@@ -34,30 +34,13 @@ export type Group = {
   enabled: boolean;
 };
 
-const SEED: Group[] = [
-  {
-    id: "seed-fb-aiauacademy",
-    platform: "fb",
-    target: "https://www.facebook.com/groups/aiauacademy",
-    label: "AI Automation Academy",
-    enabled: true,
-  },
-  // Tên group Zalo phải đúng như relay thấy (so lowercase). Group cũ "AI Agent Academy - Nhóm Hỗ Trợ" đã đổi tên.
-  {
-    id: "seed-zalo-aiaa",
-    platform: "zalo",
-    target: "ai automation academy - ai cho non-coders",
-    label: "AI Automation Academy",
-    enabled: true,
-  },
-];
-
+// Danh sách group tự khai trong Settings. FB điền URL group, Zalo điền TÊN group
+// đúng như relay thấy (so lowercase).
 export async function loadGroups(): Promise<Group[]> {
   try {
     return JSON.parse(await fsp.readFile(GROUPS_FILE, "utf8")) as Group[];
   } catch {
-    await saveGroups(SEED);
-    return SEED;
+    return [];
   }
 }
 

@@ -14,6 +14,7 @@ import {
   attachJobItem,
   ytSummaryProjectDir,
   listDailyNewsJobs,
+  GROUP_CTA,
   InvalidEditParamError,
 } from "@/lib/edit";
 
@@ -181,7 +182,7 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ ...build, itemId });
     }
-    return NextResponse.json({ jobs: await listDailyNewsJobs(10, "ys-") });
+    return NextResponse.json({ jobs: await listDailyNewsJobs(10, "ys-"), groupCta: GROUP_CTA });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }

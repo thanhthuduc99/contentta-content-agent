@@ -323,7 +323,7 @@ export default function ItemEditor({ id }: { id: string }) {
       }),
     });
     setBusy("");
-    setMsg(r.ok ? "Đã lưu (content-agent + Obsidian)." : "Lưu lỗi.");
+    setMsg(r.ok ? "Đã lưu." : "Lưu lỗi.");
     if (r.ok) setSaved(snap);
     return r.ok;
   }, [item, body, pubCaption, firstComment, status, publishAt]);

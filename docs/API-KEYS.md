@@ -98,6 +98,30 @@ Biến: `GEMINI_API_KEY`.
 
 Tài liệu: [Gemini API keys](https://ai.google.dev/gemini-api/docs/api-key).
 
+## OpenAI — transcribe và giọng đọc cho video
+
+Biến: `OPENAI_API_KEY`.
+
+Bắt buộc nếu dùng build video dọc. Pipeline gọi Whisper để nghe lại giọng đọc và sinh phụ đề khớp từng từ, và dùng `gpt-4o-mini-tts` làm giọng dự phòng.
+
+1. Mở [OpenAI API keys](https://platform.openai.com/api-keys).
+2. Tạo key mới, đặt giới hạn chi tiêu cho project nếu có.
+3. Điền vào `.env` gốc, hoặc vào `.env` của từng sandbox trong `edit-agent/sandbox/`.
+
+## Vivibe — giọng đọc tiếng Việt (tuỳ chọn)
+
+Biến: `VIVIBE_API_KEY` và `VOICE_ID`.
+
+Giọng Việt tự nhiên hơn TTS của OpenAI, dịch vụ của lucylab. Không có key thì `tools/tts-vivibe.mjs` tự chuyển sang OpenAI, build vẫn chạy bình thường.
+
+`VOICE_ID` là id giọng bạn đã tạo hoặc chọn trong tài khoản Vivibe.
+
+## Pixabay — ảnh và video stock (tuỳ chọn)
+
+Biến: `PIXABAY_API_KEY`.
+
+Dùng khi scene cần ảnh minh hoạ mà nguồn không có sẵn ảnh thật. Lấy key miễn phí tại [Pixabay API](https://pixabay.com/api/docs/).
+
 ## Obsidian — không cần API key
 
 Điền đường dẫn tuyệt đối tới hai thư mục trong vault:

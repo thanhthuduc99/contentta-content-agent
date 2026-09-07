@@ -1,0 +1,98 @@
+/* Contentta v2026.05 Orbital — brand tokens
+   Source of truth: assets/brand-visual-guide.md
+   Apply across all video templates + FCPXML export.
+*/
+
+:root {
+  /* ---------- TYPOGRAPHY ---------- */
+  --font-display: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+  --font-body:    'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, 'Courier New', monospace;
+  --font-hand:    'Caveat', cursive;
+
+  /* ---------- COLOR · Universe Palette ---------- */
+  --cosmic-red:   #E10E1F;
+  --deep-space:   #070409;
+  --stardust:     #FAF7F5;
+
+  --hot-flare:    #FF2A3C;
+  --ember:        #B0091B;
+  --maroon:       #5A0410;
+  --dust:         #A89BA1;
+
+  /* ---------- SEMANTIC ROLES (60/25/15 ratio) ---------- */
+  --bg-default:    var(--deep-space);
+  --bg-light:      var(--stardust);
+  --text-default:  var(--stardust);
+  --text-bold:     var(--cosmic-red);
+  --text-muted:    var(--dust);
+  --accent:        var(--cosmic-red);
+  --accent-hot:    var(--hot-flare);
+  --border-light:  var(--stardust);
+
+  /* ---------- TYPE SCALE ---------- */
+  --h1: 72px;
+  --h2: 48px;
+  --h3: 32px;
+  --lead: 20px;
+  --body: 16px;
+  --caption: 12px;
+
+  /* Big-impact display sizes used in video overlays */
+  --hero-display:  120px;
+  --headline-lg:   88px;
+  --caption-video: 64px;
+
+  /* ---------- LAYOUT TOKENS ---------- */
+  --face-radius-pip: 28px;
+  --face-border-w:   3px;
+  --face-border-color: var(--stardust);
+
+  --vignette-strength: 0.35;
+  --grain-alpha: 0.04;
+
+  /* ---------- MOTION ---------- */
+  --ease-snap:  cubic-bezier(.22, 1, .36, 1);
+  --ease-pop:   cubic-bezier(.34, 1.56, .64, 1);
+  --ease-in-fast: cubic-bezier(.7, 0, .84, 0);
+
+  --stagger-word: 0.35s;
+  --reveal-slide: 20px;
+}
+
+/* ---------- UTILITY HELPERS ---------- */
+
+.text-default { color: var(--stardust); font-family: var(--font-body); }
+.text-display { color: var(--stardust); font-family: var(--font-display); font-weight: 700; }
+.text-bold-red { color: var(--cosmic-red); font-weight: 700; }
+.text-muted { color: var(--dust); }
+
+.bg-default { background: var(--deep-space); }
+.bg-light { background: var(--stardust); }
+
+/* Perspective grid floor (Motion Philosophy 2.1 #1) */
+.bg-grid {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg,  rgba(255,255,255,.06) 0 1px, transparent 1px 80px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 1px, transparent 1px 80px);
+  transform: perspective(800px) rotateX(60deg);
+  transform-origin: 50% 100%;
+}
+
+/* Vignette overlay */
+.vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,calc(var(--vignette-strength) * 2)) 100%);
+  pointer-events: none;
+}
+
+/* Pure-CSS deterministic grain (no PNG) */
+.grain {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(rgba(0,0,0,var(--grain-alpha)) 1px, transparent 1px) 0 0 / 3px 3px,
+    radial-gradient(rgba(255,255,255,var(--grain-alpha)) 1px, transparent 1px) 2px 1px / 5px 5px;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+}

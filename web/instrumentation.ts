@@ -8,7 +8,7 @@ function startDailyResearch() {
   // Gọi API route (nodejs runtime) — KHÔNG import lib node-only vào instrumentation (tránh edge bundle).
   // GET = skip-aware (runDaily tự bỏ qua nếu hôm nay đã chạy).
   const run = () =>
-    fetch("http://localhost:8502/api/research/daily", { method: "GET" })
+    fetch(`http://localhost:${process.env.CONTENT_AGENT_PORT || 8502}/api/research/daily`, { method: "GET" })
       .then((r) => r.json())
       .then((r) => console.log("[daily-research]", JSON.stringify(r).slice(0, 200)))
       .catch((e) => console.error("[daily-research]", e));
