@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_COMMENT_REPLY } from "@/lib/comment-automation-defaults";
 import { deriveKeyword, isValidKeyword, KEYWORD_MAX } from "@/lib/daily-news-keyword";
 
-type JobState = "queued" | "running" | "done" | "failed";
+type JobState = "queued" | "running" | "done" | "published" | "failed";
 type Job = {
   slug: string;
   topic: string;
@@ -12,6 +12,7 @@ type Job = {
   queuedAt: number;
   startedAt?: number;
   endedAt?: number;
+  publishedAt?: number;
 };
 type Status = { jobs: Job[] };
 type AutoDm = { link: string; keyword: string };
@@ -24,14 +25,19 @@ type Build = {
   failReason: string | null;
   topic: string;
   keyword: string;
+  publishedAt: number | null;
 };
 
 const STATE_LABEL: Record<JobState, string> = {
-  queued: "chờ", running: "đang chạy", done: "xong", failed: "lỗi",
+  queued: "chờ", running: "đang chạy", done: "chưa đăng", published: "đã đăng", failed: "lỗi",
 };
 const STATE_CLASS: Record<JobState, string> = {
-  queued: "text-muted", running: "text-amber-600", done: "text-green-600", failed: "text-red-600",
+  queued: "text-muted", running: "text-amber-600", done: "text-green-600", published: "text-muted", failed: "text-red-600",
 };
+
+function fmtTime(ms: number): string {
+  return new Date(ms).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" });
+}
 
 function jobTitle(j: Job): string {
   const line = (j.topic || "").trim().split(/\r?\n/)[0];
@@ -70,6 +76,7 @@ export default function EditDailyNewsPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<string>("");
   const [genningCaption, setGenningCaption] = useState(false);
+  const [marking, setMarking] = useState(false);
 
   // auto comment-to-DM (facebook/instagram): rút link GitHub + keyword từ topic gốc
   const [autoDm, setAutoDm] = useState<AutoDm | null>(null);
@@ -213,8 +220,34 @@ export default function EditDailyNewsPage() {
       });
       const data = await res.json();
       setPublishResult(data.error ? `Lỗi: ${data.error}` : JSON.stringify(data.result, null, 2));
+      // Server đã ghi publishedAt nếu có nền tảng nhận bài → tải lại để dòng nhảy sang "đã đăng".
+      await Promise.all([loadJobs(), reloadBuild()]);
     } catch (e) { setPublishResult(`Lỗi: ${(e as Error).message}`); }
     finally { setPublishing(false); }
+  }
+
+  async function reloadBuild() {
+    if (!slug) return;
+    try {
+      const b: Build = await fetch(`/api/edit/daily-news?slug=${slug}`).then((r) => r.json());
+      setBuild(b);
+    } catch {}
+  }
+
+  // Đánh dấu tay: video đã đăng ngoài app, hoặc bỏ đánh dấu khi bấm nhầm.
+  async function doMark(published: boolean) {
+    if (!slug || marking) return;
+    setMarking(true); setErr("");
+    try {
+      const res = await fetch("/api/edit/daily-news", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark", slug, published }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Đánh dấu lỗi"); return; }
+      await Promise.all([loadJobs(), reloadBuild()]);
+    } catch (e) { setErr((e as Error).message); }
+    finally { setMarking(false); }
   }
 
   async function doGenCaption(auto = false) {
@@ -243,6 +276,25 @@ export default function EditDailyNewsPage() {
   }
 
   const keywordBad = !!keyword && !isValidKeyword(keyword);
+  const pendingJobs = jobs.filter((j) => j.state !== "published");
+  const publishedJobs = jobs.filter((j) => j.state === "published");
+
+  const renderJob = (j: Job) => (
+    <li key={j.slug}>
+      <button
+        type="button"
+        onClick={() => openProject(j.slug)}
+        className={`w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/5 ${j.slug === slug ? "bg-black/5" : ""}`}
+      >
+        <span className={`text-xs shrink-0 w-16 ${STATE_CLASS[j.state]}`}>{STATE_LABEL[j.state]}</span>
+        <span className="text-xs text-ink truncate flex-1">{jobTitle(j)}</span>
+        {j.keyword && <span className="text-xs text-muted font-mono shrink-0">{j.keyword}</span>}
+        <span className="text-xs text-muted font-mono shrink-0 w-12 text-right">
+          {j.state === "published" && j.publishedAt ? fmtTime(j.publishedAt) : elapsed(j)}
+        </span>
+      </button>
+    </li>
+  );
 
   return (
     <div className="max-w-2xl">
@@ -297,7 +349,8 @@ export default function EditDailyNewsPage() {
             }>
               {build.state === "queued" ? "⏸ chờ tới lượt" :
                build.state === "running" ? "⏳ đang dựng + render (~15 phút)…" :
-               build.state === "done" ? "✓ xong" : "✗ lỗi"}
+               build.state === "done" ? "✓ xong, chưa đăng" :
+               build.state === "published" ? `✓ đã đăng ${build.publishedAt ? fmtTime(build.publishedAt) : ""}` : "✗ lỗi"}
             </span>
             {build.keyword && <span className="text-xs text-muted font-mono">comment {build.keyword}</span>}
           </div>
@@ -402,9 +455,20 @@ export default function EditDailyNewsPage() {
               value={schedule} onChange={(e) => setSchedule(e.target.value)} />
           </label>
 
-          <button className="btn btn-primary self-start" disabled={publishing || !caption.trim() || platforms.length === 0} onClick={doPublish}>
-            {publishing ? "Đang đăng…" : schedule ? "Hẹn lịch đăng" : "Đăng ngay"}
-          </button>
+          <div className="flex items-center gap-3">
+            <button className="btn btn-primary" disabled={publishing || !caption.trim() || platforms.length === 0} onClick={doPublish}>
+              {publishing ? "Đang đăng…" : schedule ? "Hẹn lịch đăng" : "Đăng ngay"}
+            </button>
+            {build.state === "published" ? (
+              <button type="button" className="btn btn-ghost" disabled={marking} onClick={() => doMark(false)}>
+                Bỏ đánh dấu đã đăng
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ghost" disabled={marking} onClick={() => doMark(true)}>
+                Đánh dấu đã đăng (không đăng)
+              </button>
+            )}
+          </div>
           {publishResult && (
             <pre className="text-xs card p-3 overflow-auto max-h-64 whitespace-pre-wrap">{publishResult}</pre>
           )}
@@ -419,26 +483,23 @@ export default function EditDailyNewsPage() {
         ) : jobs.length === 0 ? (
           <div className="text-xs text-muted">Chưa có job nào.</div>
         ) : (
-          <ul className="flex flex-col gap-0.5">
-            {jobs.map((j) => (
-              <li key={j.slug}>
-                <button
-                  type="button"
-                  onClick={() => openProject(j.slug)}
-                  className={`w-full text-left flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-black/5 ${j.slug === slug ? "bg-black/5" : ""}`}
-                >
-                  <span className={`text-xs shrink-0 w-16 ${STATE_CLASS[j.state]}`}>{STATE_LABEL[j.state]}</span>
-                  <span className="text-xs text-ink truncate flex-1">{jobTitle(j)}</span>
-                  {j.keyword && <span className="text-xs text-muted font-mono shrink-0">{j.keyword}</span>}
-                  <span className="text-xs text-muted font-mono shrink-0 w-10 text-right">{elapsed(j)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {pendingJobs.length === 0 ? (
+              <div className="text-xs text-muted">Không còn video nào chờ đăng.</div>
+            ) : (
+              <ul className="flex flex-col gap-0.5">{pendingJobs.map(renderJob)}</ul>
+            )}
+            {publishedJobs.length > 0 && (
+              <details className="mt-1">
+                <summary className="text-xs text-muted cursor-pointer">Đã đăng ({publishedJobs.length})</summary>
+                <ul className="flex flex-col gap-0.5 mt-1">{publishedJobs.map(renderJob)}</ul>
+              </details>
+            )}
+          </>
         )}
         <p className="text-xs text-muted">
           Chạy tuần tự 1 video/lần: hai agent headless cùng lúc sẽ đá nhau khỏi phiên đăng nhập.
-          Bắn bao nhiêu topic cũng được, bấm 1 dòng để mở video + caption và đăng.
+          Video &quot;chưa đăng&quot; nằm lại đây tới khi đăng qua app hoặc bấm &quot;Đánh dấu đã đăng&quot;.
         </p>
       </div>
     </div>

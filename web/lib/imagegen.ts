@@ -53,7 +53,8 @@ function extractJson<T>(raw: string): T {
   return JSON.parse(m[0]) as T;
 }
 
-const BRAND = `Thương hiệu ${(process.env.BRAND_NAME || "của người dùng").trim()}. Bám BUSINESS CONTEXT và VOICE PROFILE; tiếng Việt có dấu, câu ngắn.`;
+const BRAND =
+  "Thương hiệu Contentta (agency AI automation, founder Thành Vũ Đức). Giọng casual, tiếng Việt có dấu, câu ngắn.";
 
 function excerpt(body?: string): string {
   return (body || "").replace(/^---[\s\S]*?---/, "").trim().slice(0, 1600);

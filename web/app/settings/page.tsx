@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import GroupsSection from "./groups-section";
 
 type Row = {
   name: string;
@@ -78,7 +79,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink">Settings</h1>
         <p className="text-sm text-muted mt-1">
-          Trạng thái dịch vụ tích hợp &amp; cấu hình Zernio
+          Trạng thái dịch vụ tích hợp, cấu hình Zernio và đăng lên group
         </p>
       </div>
 
@@ -157,6 +158,8 @@ export default function SettingsPage() {
 
         {savedMsg && <p className="text-sm text-brand mt-3">{savedMsg}</p>}
       </div>
+
+      <GroupsSection />
     </div>
   );
 }

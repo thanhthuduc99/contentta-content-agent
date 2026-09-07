@@ -18,15 +18,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "thiếu chủ đề" }, { status: 400 });
     }
     let body: string;
-    let threads: string | undefined;
     if (input.manual) {
       if (!input.body?.trim()) {
         return NextResponse.json({ error: "thiếu nội dung dán vào" }, { status: 400 });
       }
       body = input.body.trim();
-      threads = undefined;
     } else {
-      ({ body, threads } = await generate(input));
+      ({ body } = await generate(input));
     }
 
     const date = new Date().toISOString().slice(0, 10);
@@ -48,7 +46,6 @@ export async function POST(req: NextRequest) {
       posted: false,
       posted_at: null,
       parent: null,
-      threads,
       publish_caption: input.publish_caption?.trim() || undefined,
       body,
     };

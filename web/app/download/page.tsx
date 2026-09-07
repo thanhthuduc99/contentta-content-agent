@@ -46,7 +46,7 @@ export default function DownloadPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink">Tải video</h1>
         <p className="text-muted text-sm mt-1">
-          Dán link Facebook, Instagram, TikTok hoặc YouTube. File lưu vào thư mục <code>DOWNLOAD_DIR</code> trong .env (mặc định <code>downloads/</code>).
+          Dán link Facebook, Instagram, TikTok hoặc YouTube. File lưu vào <code>D:\Downloads</code>.
           Chỉ tải được video công khai. TikTok đi qua Apify (~$0.006 mỗi video), 3 nền tảng còn lại
           miễn phí.
         </p>

@@ -3,8 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { REPO_ROOT, SYSTEM_DIR } from "./paths";
 
-const THREADS_MARK = "===THREADS===";
-
 async function readSafe(p: string): Promise<string> {
   try {
     return await fs.readFile(p, "utf8");
@@ -17,10 +15,11 @@ async function readSafe(p: string): Promise<string> {
 // --settings ép outputStyle "default": nếu không, subprocess ăn theo outputStyle account
 // (vd "Explanatory") → nội dung lẫn khối "✶ Insight ──" vào giữa caption/post đăng thật.
 const HEADLESS_SETTINGS = path.join(REPO_ROOT, "web", "lib", "headless-claude-settings.json");
-function runClaude(prompt: string, web = false): Promise<string> {
+function runClaude(prompt: string, web = false, timeoutMs?: number): Promise<string> {
+  const limit = timeoutMs ?? (web ? 290_000 : 180_000);
   return new Promise((resolve, reject) => {
     // shell:true trên Windows chỉ join args bằng space, không tự quote — path REPO_ROOT
-    // có thể chứa space nên phải tự bọc "" mới không bị cmd cắt giữa chừng.
+    // có space ("CONTENTTA AGENCY") nên phải tự bọc "" mới không bị cmd cắt giữa chừng.
     const args = ["-p", "--output-format", "text", "--settings", `"${HEADLESS_SETTINGS}"`];
     if (web) args.push("--allowedTools", "WebSearch,WebFetch,Read");
     const child = spawn("claude", args, {
@@ -31,8 +30,8 @@ function runClaude(prompt: string, web = false): Promise<string> {
     let err = "";
     const timer = setTimeout(() => {
       child.kill();
-      reject(new Error(`claude -p timeout (${web ? 290 : 180}s)`));
-    }, web ? 290_000 : 180_000);
+      reject(new Error(`claude -p timeout (${Math.round(limit / 1000)}s)`));
+    }, limit);
     child.stdout.on("data", (d) => (out += d.toString()));
     child.stderr.on("data", (d) => (err += d.toString()));
     child.on("error", (e) => {
@@ -74,10 +73,7 @@ async function buildContext(type: string): Promise<string> {
   ].join("\n\n---\n\n");
 }
 
-export async function generate(input: GenerateInput): Promise<{
-  body: string;
-  threads?: string;
-}> {
+export async function generate(input: GenerateInput): Promise<{ body: string }> {
   const ctx = await buildContext(input.type);
   const ctLabel = CT_LABEL[input.content_type] || input.content_type;
 
@@ -122,7 +118,6 @@ ${input.notes ? "Ghi chú: " + input.notes : ""}
 YÊU CẦU:
 - Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều, số liệu thật.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.
-- Sau bài post chính, in đúng dòng "${THREADS_MARK}" rồi viết bản Threads (≤500 ký tự, không hashtag).
 
 Chỉ trả về nội dung. Không dùng tool, không hỏi lại, không thêm lời dẫn.`;
   }
@@ -130,18 +125,6 @@ Chỉ trả về nội dung. Không dùng tool, không hỏi lại, không thêm
   const prompt = `${ctx}\n\n========================\n\n${task}`;
   const raw = await runClaude(prompt);
 
-  if (input.type === "post" && raw.includes(THREADS_MARK)) {
-    const [body, threads] = raw.split(THREADS_MARK);
-    return { body: body.trim(), threads: threads.trim() };
-  }
-  return { body: raw };
-}
-
-function splitThreads(raw: string): { body: string; threads?: string } {
-  if (raw.includes(THREADS_MARK)) {
-    const [body, threads] = raw.split(THREADS_MARK);
-    return { body: body.trim(), threads: threads.trim() };
-  }
   return { body: raw.trim() };
 }
 
@@ -150,7 +133,7 @@ export async function generateYouTubePost(input: {
   title: string;
   transcript: string;
   url: string;
-}): Promise<{ body: string; threads?: string }> {
+}): Promise<{ body: string }> {
   const ctx = await buildContext("post");
   const task = `NHIỆM VỤ: Viết 1 bài post chia sẻ nội dung video YouTube "${input.title}" dựa trên transcript bên dưới.
 
@@ -159,14 +142,98 @@ YÊU CẦU:
 - Rút ý hay nhất của video, kể lại theo góc nhìn của mình — KHÔNG dịch máy.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.
 - DÒNG CUỐI bài post in đúng: ${input.url}
-- Sau bài post chính, in đúng dòng "${THREADS_MARK}" rồi viết bản Threads (≤500 ký tự, không hashtag, vẫn có link video ở cuối).
 
 Chỉ trả về nội dung. Không dùng tool, không hỏi lại, không thêm lời dẫn.
 
 TRANSCRIPT:
 ${input.transcript.slice(0, 14000)}`;
   const raw = await runClaude(`${ctx}\n\n========================\n\n${task}`);
-  return splitThreads(raw);
+  return { body: raw.trim() };
+}
+
+const CLIP_MARK = "===CLIP===";
+
+export type ClipPick = { start: number; end: number; reason?: string };
+
+function fmtTime(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return (h ? `${h}:` : "") + `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+// Transcript 1h30 quá dài cho 1 prompt → giữ đều đầu + giữa + cuối để bài post vẫn tổng hợp cả video.
+function sampleTimed(lines: { start: number; text: string }[], budget = 60_000): string {
+  const all = lines.map((l) => `[${fmtTime(l.start)}] ${l.text}`);
+  const full = all.join("\n");
+  if (full.length <= budget) return full;
+  const third = Math.floor(budget / 3);
+  const pick = (arr: string[], limit: number) => {
+    const out: string[] = [];
+    let n = 0;
+    for (const s of arr) {
+      if (n + s.length + 1 > limit) break;
+      out.push(s);
+      n += s.length + 1;
+    }
+    return out.join("\n");
+  };
+  const midStart = Math.floor(all.length / 2);
+  return [
+    pick(all, third),
+    "[... lược bớt ...]",
+    pick(all.slice(midStart), third),
+    "[... lược bớt ...]",
+    pick(all.slice().reverse(), third).split("\n").reverse().join("\n"),
+  ].join("\n");
+}
+
+// YouTube dài → 1 bài post duy nhất dùng cho cả LinkedIn lẫn Threads (CTA "video dưới comment")
+// + clip đăng kèm LUÔN cắt từ giây 0, AI chỉ chọn điểm dừng (60-180s).
+export async function generateYouTubeVideoPost(input: {
+  title: string;
+  timed: { start: number; text: string }[];
+  url: string;
+}): Promise<{ body: string; clip: ClipPick | null }> {
+  const ctx = await buildContext("post");
+  const durSec = input.timed.length ? input.timed[input.timed.length - 1].start : 0;
+  const task = `NHIỆM VỤ: Từ transcript (kèm mốc thời gian) của video YouTube "${input.title}" (dài ${fmtTime(durSec)}), làm 2 việc:
+
+1. Viết 1 bài post TỔNG HỢP TOÀN BỘ nội dung video, đủ các phần chính từ đầu đến cuối, không chỉ mở bài. Rút ý theo góc nhìn của mình, có số liệu thật từ transcript.
+2. Chọn ĐIỂM DỪNG cho đoạn MỞ ĐẦU video để cắt đăng kèm bài.
+
+YÊU CẦU BÀI POST:
+- Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều.
+- KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait, KHÔNG em-dash, KHÔNG mũi tên.
+- KHÔNG chứa link nào trong bài.
+- CÂU CUỐI bài in đúng: "Video đầy đủ mình để dưới comment."
+
+CHỌN ĐOẠN CẮT: clip LUÔN bắt đầu từ giây 0 (đoạn mở đầu video). Việc của bạn là chọn ĐIỂM DỪNG. Sau bài post, in đúng dòng "${CLIP_MARK}" rồi 1 JSON duy nhất dạng {"end": <giây>, "reason": "<1 câu vì sao dừng ở đó>"}. Điểm dừng phải rơi vào chỗ CÂU NÓI ĐÃ TRỌN Ý và người xem đang tò mò muốn xem tiếp, KHÔNG cắt giữa câu. Dài 60-180 giây tính từ giây 0. end tính bằng giây, khớp mốc [h:mm:ss] trong transcript.
+
+Chỉ trả về nội dung. Không dùng tool, không hỏi lại, không thêm lời dẫn.
+
+TRANSCRIPT (mỗi dòng có mốc thời gian):
+${sampleTimed(input.timed)}`;
+  const raw = await runClaude(`${ctx}\n\n========================\n\n${task}`, false, 420_000);
+
+  let rest = raw;
+  let clip: ClipPick | null = null;
+  if (rest.includes(CLIP_MARK)) {
+    const [before, after] = rest.split(CLIP_MARK);
+    rest = before;
+    const m = after.match(/\{[\s\S]*?\}/);
+    if (m) {
+      try {
+        const j = JSON.parse(m[0]) as { end?: number; reason?: string };
+        const end = Math.min(Math.max(Number(j.end), 60), 180);
+        if (Number.isFinite(end)) clip = { start: 0, end, reason: j.reason };
+      } catch {
+        /* AI trả JSON hỏng → bỏ clip, post vẫn dùng được */
+      }
+    }
+  }
+  return { body: rest.trim(), clip };
 }
 
 // Post chia sẻ kiến thức + CTA comment keyword nhận tài liệu. source = text có sẵn; url lạ → claude tự đọc web.
@@ -196,7 +263,7 @@ export async function generateSharePost(input: {
   source?: string;
   url?: string;
   keyword?: string;
-}): Promise<{ body: string; threads?: string }> {
+}): Promise<{ body: string }> {
   const ctx = await buildContext("post");
   const useWeb = Boolean(input.url && !input.source);
   const kw = (input.keyword || "").trim();
@@ -206,12 +273,11 @@ export async function generateSharePost(input: {
 YÊU CẦU:
 - Đúng voice Thanh: xưng "mình"/"bạn", câu ngắn, xuống dòng nhiều.
 - KHÔNG intro form "Không phải X…", KHÔNG kết bằng câu hỏi engagement-bait.${ctaLine}
-- Sau bài post chính, in đúng dòng "${THREADS_MARK}" rồi viết bản Threads (≤500 ký tự, không hashtag).
 
 Chỉ trả về nội dung.${useWeb ? " Dùng WebFetch đọc link nguồn trước khi viết." : " Không dùng tool."} Không hỏi lại, không thêm lời dẫn.
 
 NGUỒN:
 ${input.source ? input.source.slice(0, 14000) : input.url}`;
   const raw = await runClaude(`${ctx}\n\n========================\n\n${task}`, useWeb);
-  return splitThreads(raw);
+  return { body: raw.trim() };
 }

@@ -1,6 +1,6 @@
 import "./env";
 
-// YouTube Data API v3 (API key cho dữ liệu public, OAuth cho kênh đã đăng nhập).
+// YouTube Data API v3 (API key, data public). Kênh mặc định @thanhvuduccc.
 const API = "https://www.googleapis.com/youtube/v3";
 
 export type YtVideo = {
@@ -86,11 +86,8 @@ type VideosResp = {
 };
 
 export async function getYouTubeStats(maxVideos = 10): Promise<YtStats> {
+  const handle = (process.env.YOUTUBE_CHANNEL_HANDLE || "thanhvuduccc").trim().replace(/^@/, "");
   const useOAuth = !!(process.env.YOUTUBE_OAUTH_REFRESH_TOKEN || "").trim();
-  const handle = (process.env.YOUTUBE_CHANNEL_HANDLE || "").trim().replace(/^@/, "");
-  if (!useOAuth && !handle) {
-    throw new Error("Thiếu YOUTUBE_CHANNEL_HANDLE trong .env (hoặc cấu hình YouTube OAuth).");
-  }
   // Có OAuth: lấy thẳng kênh của tài khoản đã consent (mine=true), khỏi đoán handle.
   const ch = await yt<ChannelResp>(
     "channels",

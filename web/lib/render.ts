@@ -38,12 +38,8 @@ const LINE = "rgba(23,19,13,0.14)";
 const PLUM = "#4A3AE0";
 const GRAD = "linear-gradient(105deg, #4A3AE0 0%, #7B6CFF 40%, #FFB39C 95%)";
 
-const BRAND_PERSON_NAME = (process.env.BRAND_PERSON_NAME || "Tên của bạn").trim();
-const BRAND_NAME = (process.env.BRAND_NAME || "Content Agent").trim();
-const BRAND_DOMAIN = (process.env.BRAND_DOMAIN || "localhost:8502").trim();
-// Ảnh mặt người dùng cho thumbnail, tùy chọn. Không có thì render không chèn mặt.
-const FACE_LUMEN = path.join(CONTENT_DIR, "_assets", "face-cutout-lumen.png");
-const FACE_OLD = path.join(CONTENT_DIR, "_assets", "face-cutout.png");
+const FACE_LUMEN = path.join(CONTENT_DIR, "_assets", "thanh-cutout-lumen.png");
+const FACE_OLD = path.join(CONTENT_DIR, "_assets", "thanh-cutout.png");
 const FACE = fs.existsSync(FACE_LUMEN) ? FACE_LUMEN : FACE_OLD;
 
 // ---- VNode helper ----
@@ -79,8 +75,8 @@ function header(): Node {
     h(
       "div",
       { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" },
-      h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 24, fontWeight: 600, color: INK, letterSpacing: 0.3 }, BRAND_PERSON_NAME),
-      h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 24, fontWeight: 600, color: MUTED, letterSpacing: 0.3 }, BRAND_NAME)
+      h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 24, fontWeight: 600, color: INK, letterSpacing: 0.3 }, "Thành Vũ Đức"),
+      h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 24, fontWeight: 600, color: MUTED, letterSpacing: 0.3 }, "Contentta")
     ),
     h("div", { display: "flex", width: "100%", height: 1, background: LINE })
   );
@@ -89,7 +85,7 @@ function footer(): Node {
   return h(
     "div",
     { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" },
-    h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 22, fontWeight: 600, color: MUTED, letterSpacing: 0.5 }, BRAND_DOMAIN),
+    h("div", { display: "flex", fontFamily: "BeVietnamPro", fontSize: 22, fontWeight: 600, color: MUTED, letterSpacing: 0.5 }, "contentta.vn"),
     img(gradSvg("arrow"), 92, 34)
   );
 }

@@ -3,17 +3,13 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import "@/lib/env";
-import { REPO_ROOT } from "@/lib/paths";
 import { downloadTiktok } from "@/lib/tiktok";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
-const DEST = (process.env.DOWNLOAD_DIR || "").trim()
-  ? path.resolve(process.env.DOWNLOAD_DIR!)
-  : path.join(REPO_ROOT, "downloads");
+const DEST = "D:/Downloads";
 
 // winget cài yt-dlp rồi thêm vào PATH, nhưng process đang chạy không thấy PATH mới
 // tới khi logon lại → thử đường dẫn winget trước, không có thì tin vào PATH.
@@ -21,12 +17,7 @@ const WINGET_YTDLP = path.join(
   process.env.LOCALAPPDATA || "",
   "Microsoft/WinGet/Packages/yt-dlp.yt-dlp_Microsoft.Winget.Source_8wekyb3d8bbwe/yt-dlp.exe"
 );
-const YTDLP = (process.env.YT_DLP_PATH || "").trim() ||
-  (existsSync(WINGET_YTDLP)
-    ? WINGET_YTDLP
-    : process.platform === "win32"
-      ? "yt-dlp.exe"
-      : "yt-dlp");
+const YTDLP = existsSync(WINGET_YTDLP) ? WINGET_YTDLP : "yt-dlp.exe";
 
 // Chỉ nhận link 4 nền tảng này — không đưa string tuỳ ý vào command line.
 const ALLOWED = [

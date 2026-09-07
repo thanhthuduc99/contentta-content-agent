@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { MEDIA_DIR } from "@/lib/paths";
+import { serveFile } from "@/lib/serve-file";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,10 +35,11 @@ export async function GET(req: NextRequest) {
 
   if (file) {
     try {
-      const buf = await fs.readFile(path.join(dir, path.basename(file)));
-      return new NextResponse(new Uint8Array(buf), {
-        headers: { "Content-Type": CT[path.extname(file).toLowerCase()] || "application/octet-stream" },
-      });
+      return await serveFile(
+        req,
+        path.join(dir, path.basename(file)),
+        CT[path.extname(file).toLowerCase()] || "application/octet-stream"
+      );
     } catch {
       return NextResponse.json({ error: "không thấy file" }, { status: 404 });
     }

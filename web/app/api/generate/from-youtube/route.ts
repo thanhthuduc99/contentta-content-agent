@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { body, threads } = await generateYouTubePost({ title, transcript, url: cleanUrl });
+    const { body } = await generateYouTubePost({ title, transcript, url: cleanUrl });
 
     const date = new Date().toISOString().slice(0, 10);
     const item: ContentItem = {
@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
       posted: false,
       posted_at: null,
       parent: null,
-      threads,
       source_url: cleanUrl,
       body,
     };

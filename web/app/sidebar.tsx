@@ -107,6 +107,7 @@ const NAV: Entry[] = [
   { href: "/comment-to-dm", label: "Comment to DM", icon: CommentToDmIcon },
   { href: "/download", label: "Tải video", icon: DownloadIcon },
   { href: "/edit/daily-news", label: "Edit daily news", icon: EditIcon },
+  { href: "/edit/youtube", label: "YouTube repurpose", icon: EditIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
@@ -201,7 +202,7 @@ export default function Sidebar() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-ink truncate">Contentta</span>
-            <span className="block text-xs text-muted truncate">Workspace local</span>
+            <span className="block text-xs text-muted truncate">thanhthuduc99@gmai…</span>
           </span>
         </Link>
       </div>

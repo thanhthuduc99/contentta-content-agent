@@ -13,7 +13,7 @@ function safe(id: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { id, files, platforms, accountIds, scheduledTime, caption, playlistId, threadsCaption, firstComment } =
+    const { id, files, platforms, accountIds, scheduledTime, caption, playlistId, firstComment } =
       (await req.json()) as {
         id: string;
         files: string[];
@@ -22,7 +22,6 @@ export async function POST(req: NextRequest) {
         scheduledTime?: string;
         caption: string;
         playlistId?: string;
-        threadsCaption?: string;
         firstComment?: string;
       };
 
@@ -45,7 +44,6 @@ export async function POST(req: NextRequest) {
       accountIds,
       scheduledTime: scheduledTime || undefined,
       youtube: playlistId ? { playlistId } : undefined,
-      threadsCaption,
       firstComment,
     });
     return NextResponse.json({ result });

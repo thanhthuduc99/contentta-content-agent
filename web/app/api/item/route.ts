@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ item });
 }
 
-// Lưu chỉnh sửa (body, caption, threads...) → content/ + mirror Obsidian.
+// Lưu chỉnh sửa (body, caption…) → content/ + mirror Obsidian.
 export async function PUT(req: NextRequest) {
   try {
     const item = (await req.json()) as ContentItem;

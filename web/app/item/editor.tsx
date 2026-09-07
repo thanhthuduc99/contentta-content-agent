@@ -6,6 +6,7 @@ import { splitThreads } from "@/lib/threads-chain";
 import { postJson } from "@/lib/post-json";
 import { DEFAULT_COMMENT_REPLY, DEFAULT_DM_MESSAGE } from "@/lib/comment-automation-defaults";
 import { PUB_PLATFORMS, accountLabel, slotById, useAccounts } from "@/lib/use-accounts";
+import type { Group } from "@/lib/group-post";
 
 type Item = {
   id: string;
@@ -21,11 +22,12 @@ type Item = {
   posted?: boolean;
   posted_at?: string | null;
   parent?: string | null;
-  threads?: string;
   edit_state?: string;
   source_url?: string;
   cta_keyword?: string;
   first_comment?: string;
+  group_posted_at?: string | null;
+  groups?: string;
   body: string;
 };
 
@@ -33,6 +35,13 @@ type Item = {
 const DM_PLATFORMS = ["facebook", "instagram"];
 
 const PLATFORMS = PUB_PLATFORMS;
+
+// Trả về của GET /api/group-post: phiên FB + relay Zalo có sẵn sàng để đăng group không.
+type GroupHealth = {
+  fb: { ok: boolean; reason?: string };
+  zalo: { ok: boolean; reason?: string };
+  busy: string | null;
+};
 
 const VIDEO_EXT = [".mp4", ".mov", ".webm", ".mkv"];
 const isVideo = (f: string) => VIDEO_EXT.some((e) => f.toLowerCase().endsWith(e));
@@ -80,6 +89,7 @@ type PlatResult = {
   platformPostId?: string;
   zernioPostId?: string;
   comment?: { status?: string; reason?: string };
+  inbox?: boolean; // TikTok: Zernio hết chỗ đăng thẳng, video đã vào Creator Inbox, đăng nốt trong app
   [k: string]: unknown;
 };
 
@@ -94,7 +104,8 @@ function hasFailure(r: unknown): boolean {
 function hasPendingPublication(r: unknown): boolean {
   if (!r || typeof r !== "object") return false;
   const o = r as Record<string, PlatResult | string>;
-  return slotsOf(r).some((k) => (o[k] as PlatResult)?.status === "pending");
+  // Inbox TikTok là trạng thái cuối (việc còn lại làm trong app), không chặn đánh dấu đã đăng.
+  return slotsOf(r).some((k) => (o[k] as PlatResult)?.status === "pending" && !(o[k] as PlatResult)?.inbox);
 }
 
 function successfulPlatforms(r: unknown): string[] {
@@ -155,7 +166,15 @@ function ResultView({ r }: { r: unknown }) {
             return (
               <span key={e.k} className={`chip ${cls}`} title={e.reason || ""}>
                 {e.account ? `${e.k} · ${e.account}` : e.k} ·{" "}
-                {ok ? "đã đăng" : pending ? "đang xử lý" : skipped ? "bỏ qua" : "lỗi"}
+                {ok
+                  ? "đã đăng"
+                  : e.inbox
+                  ? "đã vào Hộp thư TikTok"
+                  : pending
+                  ? "đang xử lý"
+                  : skipped
+                  ? "bỏ qua"
+                  : "lỗi"}
                 {e.comment && (
                   <span className="opacity-70 ml-1" title={e.comment.reason || ""}>
                     · {e.comment.status === "sent" ? "kèm comment" : "không comment"}
@@ -202,7 +221,6 @@ function localInputToIso(v: string): string | null {
 export default function ItemEditor({ id }: { id: string }) {
   const [item, setItem] = useState<Item | null>(null);
   const [body, setBody] = useState("");
-  const [threads, setThreads] = useState("");
   const [pubCaption, setPubCaption] = useState("");
   const [status, setStatus] = useState("draft");
   const [publishAt, setPublishAt] = useState(""); // datetime-local value
@@ -220,14 +238,38 @@ export default function ItemEditor({ id }: { id: string }) {
   const [c2dMessage, setC2dMessage] = useState("");
   const [playlists, setPlaylists] = useState<{ id: string; title: string; privacy?: string }[]>([]);
   const [playlistId, setPlaylistId] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]); // group FB/Zalo cấu hình ở Settings
+  const [groupSel, setGroupSel] = useState<string[]>([]);
+  const [gHealth, setGHealth] = useState<GroupHealth | null>(null);
+  const [groupResult, setGroupResult] = useState<unknown>(null);
+  const [groupMsg, setGroupMsg] = useState("");
+  // Bản đang nằm trên đĩa. So với state hiện tại để biết còn thay đổi chưa lưu.
+  const [saved, setSaved] = useState({ body: "", pubCaption: "", firstComment: "" });
+  const [leaveTo, setLeaveTo] = useState<string | null>(null); // đích đang chờ xác nhận ("" = quay lại)
   const fileInput = useRef<HTMLInputElement>(null);
   const presetDone = useRef(false);
   const router = useRouter();
 
+  const dirty =
+    !!item &&
+    (body !== saved.body || pubCaption !== saved.pubCaption || firstComment !== saved.firstComment);
+
   // Quay lại trang Posts giữ nguyên view + filter (URL trước đó). Fallback "/" nếu mở trực tiếp.
-  function goBack() {
+  function navBack() {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
     else router.push("/");
+  }
+
+  function goBack() {
+    if (dirty) setLeaveTo("");
+    else navBack();
+  }
+
+  function leaveNow() {
+    const to = leaveTo;
+    setLeaveTo(null);
+    if (to) router.push(to);
+    else navBack();
   }
 
   const loadMedia = useCallback(() => {
@@ -262,6 +304,30 @@ export default function ItemEditor({ id }: { id: string }) {
     [id, loadMedia]
   );
 
+  // Trả về true nếu lưu được — dùng cho nút "Lưu rồi thoát".
+  const save = useCallback(async () => {
+    if (!item) return false;
+    const snap = { body, pubCaption, firstComment };
+    setBusy("save");
+    setMsg("");
+    const r = await fetch("/api/item", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...item,
+        body,
+        publish_caption: pubCaption,
+        first_comment: firstComment,
+        status,
+        publish_at: localInputToIso(publishAt),
+      }),
+    });
+    setBusy("");
+    setMsg(r.ok ? "Đã lưu (content-agent + Obsidian)." : "Lưu lỗi.");
+    if (r.ok) setSaved(snap);
+    return r.ok;
+  }, [item, body, pubCaption, firstComment, status, publishAt]);
+
   useEffect(() => {
     fetch(`/api/item?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
@@ -270,12 +336,16 @@ export default function ItemEditor({ id }: { id: string }) {
           const it = d.item as Item;
           setItem(it);
           setBody(it.body || "");
-          setThreads(it.threads || "");
           setPubCaption(it.publish_caption || "");
           setC2dKeyword(it.cta_keyword || "");
           setFirstComment(it.first_comment || "");
           setStatus(it.status || "draft");
           setPublishAt(isoToLocalInput(it.publish_at));
+          setSaved({
+            body: it.body || "",
+            pubCaption: it.publish_caption || "",
+            firstComment: it.first_comment || "",
+          });
         }
       });
     loadMedia();
@@ -283,6 +353,18 @@ export default function ItemEditor({ id }: { id: string }) {
       .then((r) => r.json())
       .then((d) => setPlaylists(d.playlists || []))
       .catch(() => setPlaylists([]));
+    fetch("/api/groups")
+      .then((r) => r.json())
+      .then((d) => {
+        const list = (d.groups || []) as Group[];
+        setGroups(list);
+        setGroupSel(list.filter((g) => g.enabled).map((g) => g.id));
+      })
+      .catch(() => setGroups([]));
+    fetch("/api/group-post")
+      .then((r) => r.json())
+      .then((d) => setGHealth(d.error ? null : (d as GroupHealth)))
+      .catch(() => setGHealth(null));
   }, [id, loadMedia]);
 
   // Tick sẵn chip: ưu tiên accountId đã lưu (frontmatter accounts), rồi tới platform cũ (map về
@@ -344,6 +426,46 @@ export default function ItemEditor({ id }: { id: string }) {
     return () => window.removeEventListener("paste", onPaste);
   }, [uploadFiles]);
 
+  // Ctrl+S (Cmd+S trên Mac) = lưu, chặn hộp thoại save-page của trình duyệt.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "s") return;
+      e.preventDefault();
+      if (dirty && busy !== "save") save();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dirty, busy, save]);
+
+  // Đóng tab / F5 khi chưa lưu: hộp thoại mặc định của trình duyệt (không đổi chữ được).
+  useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  // App Router không có router events, nên bắt click vào link nội bộ ở capture phase
+  // rồi chặn lại để hỏi. Bỏ qua link mở tab mới và click có phím tắt.
+  useEffect(() => {
+    if (!dirty) return;
+    function onClick(e: MouseEvent) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const a = (e.target as Element)?.closest?.("a");
+      if (!(a instanceof HTMLAnchorElement) || a.target === "_blank" || !a.href) return;
+      const url = new URL(a.href);
+      const here = location.pathname + location.search;
+      if (url.origin !== location.origin || url.pathname + url.search === here) return;
+      e.preventDefault();
+      setLeaveTo(url.pathname + url.search);
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [dirty]);
+
   if (!item) return <p className="text-muted">Đang tải…</p>;
 
   const isYoutube = item.type === "youtube";
@@ -361,9 +483,8 @@ export default function ItemEditor({ id }: { id: string }) {
   ];
   const captionText = isShort || isYoutube ? pubCaption : body;
   // Preview chuỗi Threads — phải khớp đúng logic server trong lib/zernio-publish.ts.
-  const threadSource = threads.trim() || captionText;
   const threadParts = platforms.includes("threads")
-    ? [...splitThreads(threadSource), ...splitThreads(firstComment)]
+    ? [...splitThreads(captionText), ...splitThreads(firstComment)]
     : [];
 
   async function patch(partial: Record<string, unknown>) {
@@ -385,26 +506,6 @@ export default function ItemEditor({ id }: { id: string }) {
     const iso = localInputToIso(v);
     setItem((it) => (it ? { ...it, publish_at: iso } : it));
     await patch({ publish_at: iso });
-  }
-
-  async function save() {
-    setBusy("save");
-    setMsg("");
-    const r = await fetch("/api/item", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...item,
-        body,
-        threads,
-        publish_caption: pubCaption,
-        first_comment: firstComment,
-        status,
-        publish_at: localInputToIso(publishAt),
-      }),
-    });
-    setBusy("");
-    setMsg(r.ok ? "Đã lưu." : "Lưu lỗi.");
   }
 
   async function genImage() {
@@ -502,7 +603,6 @@ export default function ItemEditor({ id }: { id: string }) {
         scheduledTime,
         caption,
         playlistId: platforms.includes("youtube") ? playlistId : "",
-        threadsCaption: platforms.includes("threads") ? threads : "",
         firstComment,
       });
       const res = data.result || data;
@@ -566,6 +666,45 @@ export default function ItemEditor({ id }: { id: string }) {
     }
   }
 
+  function toggleGroup(gid: string) {
+    setGroupSel((s) => (s.includes(gid) ? s.filter((x) => x !== gid) : [...s, gid]));
+  }
+
+  // Đăng lên group FB/Zalo qua scripts/group_poster (không qua Zernio). Không đụng status/posted.
+  // Server tự ghi group_posted_at + groups vào frontmatter khi có group OK.
+  async function postToGroups() {
+    const caption = captionText;
+    if (!caption.trim()) {
+      setGroupMsg(isShort || isYoutube ? "Cần điền Caption đăng trước." : "Bài chưa có nội dung.");
+      return;
+    }
+    setBusy("groupPost");
+    setGroupMsg("");
+    setGroupResult(null);
+    try {
+      const { ok, status, data } = await postJson("/api/group-post", {
+        id,
+        caption,
+        files,
+        groupIds: groupSel,
+      });
+      if (status === 409) {
+        setGroupMsg(String(data.error || "Đang có job đăng group khác, chờ xong rồi bấm lại."));
+        return;
+      }
+      const res = data.result || data;
+      setGroupResult(res);
+      if (data.item) setItem(data.item as Item);
+      if (ok && !hasFailure(res)) setGroupMsg("Đã đăng lên group.");
+      else if (ok) setGroupMsg("Có group lỗi, xem chi tiết bên dưới.");
+      else setGroupMsg(String(data.error || "Đăng group lỗi."));
+    } catch (e) {
+      setGroupMsg(`Đăng group lỗi: ${(e as Error).message}`);
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function markPostedYoutube() {
     setBusy("markyt");
     setMsg("");
@@ -599,6 +738,9 @@ export default function ItemEditor({ id }: { id: string }) {
           <span className={`chip ${statusChipCls(status)}`}>
             {STATUS_OPTIONS.find((s) => s.value === status)?.label || "Draft"}
           </span>
+          {dirty && (
+            <span className="chip !bg-amber-50 !text-amber-700 !border-amber-200">Chưa lưu</span>
+          )}
           {item.edit_state && EDIT_STATE_LABEL[item.edit_state] && (
             <span
               className={`chip ${
@@ -723,39 +865,29 @@ export default function ItemEditor({ id }: { id: string }) {
           </>
         )}
 
-        {platforms.includes("threads") && (
-          <>
-            <div className="flex items-center justify-between mt-4">
-              <label className="label mb-0">Caption Threads</label>
-              <span className="text-xs text-muted">
-                {threadSource.length} ký tự · {threadParts.length || 1} phần
-              </span>
-            </div>
-            <textarea
-              className="textarea"
-              rows={4}
-              value={threads}
-              onChange={(e) => setThreads(e.target.value)}
-              placeholder="Bỏ trống thì lấy nội dung post ở trên. Gõ --- trên 1 dòng riêng để ép ngắt phần."
-            />
-            {threadParts.length > 1 && (
-              <div className="mt-2 grid gap-1">
-                <p className="text-xs text-muted">
-                  Đăng thành {threadParts.length} post nối tiếp, ảnh gắn vào phần 1.
-                  {firstComment.trim() && " Câu comment tự động thành phần cuối."}
+        {platforms.includes("threads") && threadParts.length > 0 && (
+          <div className="mt-4 grid gap-1">
+            <p className="text-xs text-muted">
+              {threadParts.length > 1
+                ? `Threads: nội dung trên tự chia thành ${threadParts.length} post nối tiếp, ảnh gắn vào phần 1.`
+                : "Threads: đăng nguyên nội dung trên trong 1 post."}
+              {firstComment.trim() && " Câu comment tự động thành phần cuối."}
+            </p>
+            {threadParts.length > 1 &&
+              threadParts.map((p, i) => (
+                <p key={i} className="text-xs text-muted truncate">
+                  <b>Phần {i + 1}</b> · {p.length} ký tự · {p.replace(/\s+/g, " ").slice(0, 50)}
                 </p>
-                {threadParts.map((p, i) => (
-                  <p key={i} className="text-xs text-muted truncate">
-                    <b>Phần {i + 1}</b> · {p.length} ký tự · {p.replace(/\s+/g, " ").slice(0, 50)}
-                  </p>
-                ))}
-              </div>
-            )}
-          </>
+              ))}
+          </div>
         )}
 
         <div className="flex items-center gap-3 mt-4">
-          <button className="btn btn-ghost" disabled={busy === "save"} onClick={save}>
+          <button
+            className={`btn ${dirty ? "btn-primary" : "btn-ghost"}`}
+            disabled={busy === "save"}
+            onClick={save}
+          >
             {busy === "save" ? "Đang lưu…" : "Lưu"}
           </button>
           {isYoutube && (
@@ -763,7 +895,11 @@ export default function ItemEditor({ id }: { id: string }) {
               {busy === "markyt" ? "Đang lưu…" : "Đánh dấu đã đăng"}
             </button>
           )}
-          {msg && <span className="text-sm text-muted">{msg}</span>}
+          {dirty ? (
+            <span className="text-sm text-amber-700">Chưa lưu · Ctrl+S để lưu</span>
+          ) : (
+            msg && <span className="text-sm text-muted">{msg}</span>
+          )}
         </div>
       </div>
 
@@ -829,9 +965,12 @@ export default function ItemEditor({ id }: { id: string }) {
               {files.map((f) => (
                 <div key={f} className="relative group">
                   {isVideo(f) ? (
-                    <div className="aspect-square rounded-lg bg-canvas border border-line flex items-center justify-center text-xs text-muted p-2 text-center break-all">
-                      🎬 {f}
-                    </div>
+                    <video
+                      src={`/api/media?id=${encodeURIComponent(id)}&file=${encodeURIComponent(f)}#t=0.1`}
+                      controls
+                      preload="metadata"
+                      className="aspect-square object-contain rounded-lg border border-line w-full bg-black"
+                    />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={`/api/media?id=${encodeURIComponent(id)}&file=${encodeURIComponent(f)}`} alt={f} className="aspect-square object-cover rounded-lg border border-line w-full" />
@@ -1004,6 +1143,99 @@ export default function ItemEditor({ id }: { id: string }) {
 
         <ResultView r={result} />
       </div>
+
+      {/* Group FB + Zalo: đi scripts/group_poster, không qua Zernio */}
+      <div className="card p-5">
+        <label className="label">Đăng lên cộng đồng (group Facebook + Zalo)</label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {groups
+            .filter((g) => g.enabled)
+            .map((g) => (
+              <button
+                key={g.id}
+                onClick={() => toggleGroup(g.id)}
+                className={`chip cursor-pointer ${groupSel.includes(g.id) ? "!bg-brand !text-white !border-brand" : ""}`}
+              >
+                <span className="opacity-60 mr-1">{g.platform === "fb" ? "FB" : "Zalo"}</span>
+                {g.label || g.target}
+              </button>
+            ))}
+        </div>
+        {groups.filter((g) => g.enabled).length === 0 && (
+          <p className="text-sm text-muted mb-2">Chưa có group nào. Thêm trong Settings.</p>
+        )}
+        <p className="text-xs text-muted mb-1">
+          Facebook: {!gHealth ? "đang kiểm tra…" : gHealth.fb.ok ? "sẵn sàng" : gHealth.fb.reason} · Zalo
+          relay: {!gHealth ? "đang kiểm tra…" : gHealth.zalo.ok ? "sẵn sàng" : gHealth.zalo.reason} ·{" "}
+          <a className="underline" href="/settings">
+            Cấu hình
+          </a>
+        </p>
+        <p className="text-xs text-muted mb-4">
+          Facebook nhận {isShort ? "caption + video" : "nội dung + ảnh (có clip thì gửi cả clip)"}. Zalo nhận
+          text + link YouTube (lấy từ bài), không gửi video. Chạy tuần tự: Zalo trước, rồi mở Chrome
+          thật cho Facebook, cách nhau khoảng 30 giây mỗi group. Đừng đóng cửa sổ Chrome, nhất là khi
+          đang up video.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            className="btn btn-primary"
+            disabled={busy === "groupPost" || groupSel.length === 0}
+            onClick={postToGroups}
+          >
+            {busy === "groupPost" ? "Đang đăng group…" : "Đăng lên group"}
+          </button>
+          {groupMsg && (
+            <span
+              className={`chip ${
+                groupResult && !hasFailure(groupResult)
+                  ? "!bg-green-50 !text-green-700 !border-green-200"
+                  : "!bg-red-50 !text-red-700 !border-red-200"
+              }`}
+            >
+              {groupResult && !hasFailure(groupResult) ? "✓" : "!"} {groupMsg}
+            </span>
+          )}
+        </div>
+        {item.group_posted_at && (
+          <p className="text-xs text-muted mt-2">
+            Đã đăng group lúc {new Date(item.group_posted_at).toLocaleString("vi-VN")}
+            {item.groups ? ` (${item.groups})` : ""}
+          </p>
+        )}
+        <ResultView r={groupResult} />
+      </div>
+
+      {leaveTo !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
+          onClick={() => setLeaveTo(null)}
+        >
+          <div className="card p-5 w-full max-w-sm grid gap-3" onClick={(e) => e.stopPropagation()}>
+            <p className="font-semibold text-ink">Bài chưa lưu</p>
+            <p className="text-sm text-muted">
+              Nội dung vừa sửa chưa ghi xuống file. Lưu trước khi rời trang?
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn btn-primary"
+                disabled={busy === "save"}
+                onClick={async () => {
+                  if (await save()) leaveNow();
+                }}
+              >
+                {busy === "save" ? "Đang lưu…" : "Lưu rồi thoát"}
+              </button>
+              <button className="btn btn-ghost" onClick={leaveNow}>
+                Thoát không lưu
+              </button>
+              <button className="btn btn-ghost" onClick={() => setLeaveTo(null)}>
+                Ở lại
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

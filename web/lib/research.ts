@@ -101,16 +101,44 @@ export async function ytTitle(u: string): Promise<string> {
     return "";
   }
 }
+// Fetch mặc định (không lang) trả MẢNG RỖNG im lặng khi video chỉ có phụ đề 1 ngôn ngữ
+// (vd chỉ vi) → phải thử lần lượt default → vi → en, rỗng tính là fail.
+async function fetchTranscriptAny(
+  id: string
+): Promise<{ text: string; offset: number }[] | null> {
+  for (const lang of [undefined, "vi", "en"]) {
+    try {
+      const t = await YoutubeTranscript.fetchTranscript(id, lang ? { lang } : undefined);
+      if (t.length) return t.map((x) => ({ text: x.text, offset: Number(x.offset) || 0 }));
+    } catch {
+      /* thử lang tiếp theo */
+    }
+  }
+  return null;
+}
+
 export async function transcriptYouTube(u: string): Promise<string | null> {
   const id = ytId(u);
   if (!id) return null;
-  try {
-    const t = await YoutubeTranscript.fetchTranscript(id);
-    const txt = t.map((x) => x.text).join(" ").trim();
-    return txt || null;
-  } catch {
-    return null;
-  }
+  const t = await fetchTranscriptAny(id);
+  if (!t) return null;
+  const txt = t.map((x) => x.text).join(" ").trim();
+  return txt || null;
+}
+
+export type TimedLine = { start: number; text: string }; // start = giây
+
+// Transcript kèm mốc thời gian — để AI chọn đoạn cắt theo timestamp.
+// offset của youtube-transcript có bản trả ms, bản trả giây → quy hết về giây theo độ lớn
+// (video dài hơn 100s là phân biệt được; use case toàn video 10 phút trở lên).
+export async function transcriptYouTubeTimed(u: string): Promise<TimedLine[] | null> {
+  const id = ytId(u);
+  if (!id) return null;
+  const t = await fetchTranscriptAny(id);
+  if (!t) return null;
+  const maxOff = Math.max(...t.map((x) => x.offset));
+  const div = maxOff > 100_000 ? 1000 : 1;
+  return t.map((x) => ({ start: x.offset / div, text: x.text.trim() }));
 }
 
 function slugify(s: string): string {
@@ -146,7 +174,6 @@ export async function saveResearch(
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(path.join(dir, name), md, "utf8");
   try {
-    if (!OBSIDIAN_RESEARCH) return rel;
     const od = path.join(OBSIDIAN_RESEARCH, subdir);
     await fs.mkdir(od, { recursive: true });
     await fs.writeFile(path.join(od, name), md, "utf8");

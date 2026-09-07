@@ -7,6 +7,7 @@ import {
   publishDailyNews,
   generateDailyNewsCaption,
   generateDailyNewsAutoDm,
+  setDailyNewsPublished,
   InvalidEditParamError,
 } from "@/lib/edit";
 
@@ -37,7 +38,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const action = body.action as "build" | "publish" | "caption" | "autodm";
+    const action = body.action as "build" | "publish" | "caption" | "autodm" | "mark";
 
     if (action === "build") {
       const res = await enqueueDailyNewsBuild(String(body.info || ""), String(body.keyword || ""));
@@ -52,6 +53,12 @@ export async function POST(req: NextRequest) {
     if (action === "autodm") {
       const autoDm = await generateDailyNewsAutoDm(String(body.slug || ""));
       return NextResponse.json({ ok: true, autoDm });
+    }
+
+    // Đánh dấu tay đã đăng / chưa đăng (video đăng ngoài app, hoặc bấm nhầm).
+    if (action === "mark") {
+      setDailyNewsPublished(String(body.slug || ""), body.published !== false);
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "publish") {
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, result });
     }
 
-    return NextResponse.json({ error: "action phải là 'build', 'caption', 'autodm' hoặc 'publish'" }, { status: 400 });
+    return NextResponse.json({ error: "action phải là 'build', 'caption', 'autodm', 'mark' hoặc 'publish'" }, { status: 400 });
   } catch (e) {
     const status = e instanceof InvalidEditParamError ? 400 : 500;
     return NextResponse.json({ error: (e as Error).message }, { status });

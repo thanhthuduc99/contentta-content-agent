@@ -11,7 +11,6 @@ export type Item = {
   posted?: boolean;
   posted_at?: string | null;
   parent?: string | null;
-  threads?: string;
   edit_state?: string;
   source_url?: string;
   body?: string;

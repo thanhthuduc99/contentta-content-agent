@@ -1,4 +1,6 @@
 import "./env";
+import { spawn } from "node:child_process";
+import os from "node:os";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { zfetchWith, getAccountMap, accountsById } from "./zernio";
@@ -33,6 +35,29 @@ const MIME: Record<string, string> = {
 };
 const mimeOf = (p: string) => MIME[path.extname(p).toLowerCase()] || "application/octet-stream";
 const isVideo = (p: string) => mimeOf(p).startsWith("video/");
+
+// Trích 1 frame làm ảnh cover. Frame 0 video daily-news là nền kem trắng (chữ hook chưa
+// animate vào) nên auto-thumbnail nền tảng ra ảnh trắng. Lấy frame ~3s. Trả path jpg tạm
+// hoặc null nếu lỗi (cover là phụ, lỗi thì đăng không cover). ffmpeg đã có trên PATH (yt-clip.ts).
+async function extractCoverFrame(videoPath: string, atSec = 3): Promise<string | null> {
+  const out = path.join(os.tmpdir(), `zcover-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`);
+  const grab = (t: number) =>
+    new Promise<boolean>((resolve) => {
+      const child = spawn("ffmpeg", ["-y", "-ss", t.toFixed(2), "-i", videoPath, "-frames:v", "1", "-q:v", "3", out]);
+      const timer = setTimeout(() => { child.kill(); resolve(false); }, 60_000);
+      child.on("error", () => { clearTimeout(timer); resolve(false); });
+      child.on("close", (code) => { clearTimeout(timer); resolve(code === 0); });
+    });
+  // Video ngắn hơn atSec: -ss vượt cuối trả file rỗng IM LẶNG (bẫy đã biết) → thử lại ở 0.5s.
+  for (const t of [atSec, 0.5]) {
+    if (await grab(t)) {
+      try {
+        if ((await fs.stat(out)).size > 0) return out;
+      } catch { /* không có file, thử mốc kế */ }
+    }
+  }
+  return null;
+}
 
 // Video nặng upload chậm, nhưng phải có trần để lỗi nổi lên thay vì treo request Next.
 const PUT_TIMEOUT = 10 * 60_000;
@@ -85,6 +110,10 @@ type ZPlatform = {
   platformPostUrl?: string;
   platformPostId?: string;
   error?: string;
+  // Zernio để lý do fail từng nền tảng ở errorMessage (KHÔNG phải `error`); errorCategory
+  // phân biệt lỗi tạm (rate_limit/at capacity) vs cấu hình (account_issue). Không đọc là mất lý do.
+  errorMessage?: string;
+  errorCategory?: string;
 };
 
 // 1 account = 1 target. slot là key trong result: account ĐẦU của mỗi platform giữ tên trần
@@ -141,6 +170,7 @@ function entryFor(hit: ZPlatform | undefined, t: Target, zernioPostId?: string):
     platformPostId: hit.platformPostId,
     zernioPostId,
     reason:
+      hit.errorMessage ||
       hit.error ||
       (status === "pending"
         ? `Zernio đang xử lý (${raw})`
@@ -196,7 +226,6 @@ export type PublishInput = {
   accountIds?: string[]; // chọn theo account (nhiều account cùng platform); ưu tiên hơn platforms
   scheduledTime?: string; // ISO
   youtube?: { playlistId?: string; title?: string };
-  threadsCaption?: string; // bản riêng cho Threads (trống thì lấy caption, tự chia chuỗi)
   firstComment?: string; // tự comment vào bài ngay sau khi đăng (chỗ để link)
 };
 
@@ -206,7 +235,7 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
   const commentText = (input.firstComment || "").trim();
   // Threads tối đa 500 ký tự/post → chia bài thành chuỗi reply nối tiếp thay vì cắt cụt.
   // Câu comment tự động thành mắt xích cuối (Threads không có field firstComment).
-  const chain = splitThreads(input.threadsCaption?.trim() || caption);
+  const chain = splitThreads(caption);
   if (commentText) chain.push(...splitThreads(commentText));
 
   const result: Record<string, unknown> = { status: "ok" };
@@ -269,13 +298,18 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
   const scheduleFuture = !!(scheduledTime && new Date(scheduledTime).getTime() > Date.now() + 60_000);
   const toSettle: { key: string; postId: string; targets: Target[] }[] = [];
 
+  // Ảnh cover = frame ~3s của video (frame 0 là nền trắng). Trích 1 lần từ file local, rồi
+  // upload theo TỪNG key (mỗi workspace 1 publicUrl riêng). Không có video thì bỏ qua.
+  const localVideo = mediaPaths.find((f) => isVideo(f));
+  const coverLocal = localVideo ? await extractCoverFrame(localVideo, 3) : null;
+
   // Group target theo key (workspace).
   const byKey = new Map<string, Target[]>();
   for (const t of targets) byKey.set(t.key, [...(byKey.get(t.key) || []), t]);
 
   for (const [key, tgts] of byKey) {
     const names = tgts.map((t) => t.slot).join(",");
-    let mediaItems: { type: string; url: string }[] = [];
+    let mediaItems: { type: string; url: string; thumbnail?: string; instagramThumbnail?: string }[] = [];
     try {
       mediaItems = await Promise.all(mediaPaths.map((f) => presignUpload(key, f)));
     } catch (e) {
@@ -288,6 +322,22 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
         };
       }
       continue;
+    }
+
+    // Cover cho video: upload ảnh 3s vào key này, gán URL vào media item video. FB video/Reels
+    // + LinkedIn dùng thumbnail, IG Reels dùng instagramThumbnail (openapi Zernio: MediaItem).
+    // Ảnh cover KHÔNG thêm vào mediaItems nên không bị đăng thành ảnh rời. Lỗi thì đăng không cover.
+    if (coverLocal) {
+      try {
+        const cov = await presignUpload(key, coverLocal);
+        const videoItem = mediaItems.find((m) => m.type === "video");
+        if (videoItem) {
+          videoItem.thumbnail = cov.url;
+          videoItem.instagramThumbnail = cov.url;
+        }
+      } catch (e) {
+        console.warn(`[publish] cover upload lỗi (${names}), đăng không cover: ${(e as Error).message}`);
+      }
     }
 
     const hasTiktok = tgts.some((t) => t.platform === "tiktok");
@@ -349,6 +399,8 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
         allowComment: true,
         contentPreviewConfirmed: true,
         expressConsentGiven: true,
+        // TikTok tự chọn frame giây 3 làm cover (mặc định 1s). Không cần upload ảnh.
+        ...(localVideo ? { videoCoverTimestampMs: 3000 } : {}),
       };
     }
 
@@ -377,6 +429,46 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
       ) {
         toSettle.push({ key, postId: zernioPostId, targets: tgts });
       }
+
+      // TikTok "direct posting is at capacity": Zernio chặn ngay tại cổng của họ (app TikTok của
+      // Zernio chạm cap active-user/ngày), fail sau 1s với publishAttempts 0 trong khi TikTok vẫn
+      // trả canPostMore=true cho tài khoản (đo 05/09/2026). Không có gì để chờ, gửi lại dạng draft
+      // vào Creator Inbox (không dính cap): video vào Hộp thư TikTok, Thanh dán caption và đăng
+      // trong app. Chỉ áp cho đăng ngay; bài hẹn lịch fail sau bên trong Zernio, không thấy ở đây.
+      for (const t of tgts) {
+        const r = result[t.slot] as PublishResult;
+        if (t.platform !== "tiktok" || r.status !== "failed" || !/at capacity/i.test(String(r.reason || ""))) continue;
+        const draftBody = {
+          ...body,
+          platforms: [platformTarget(t)],
+          tiktokSettings: { ...(body.tiktokSettings as Record<string, unknown>), draft: true },
+        };
+        try {
+          console.log(`[publish] tiktok at capacity → gửi Creator Inbox (${t.slot})`);
+          const r2 = await zfetchWith<{ post?: { _id?: string; id?: string; platforms?: ZPlatform[] } }>(
+            key,
+            "POST",
+            "/posts",
+            { body: draftBody, timeoutMs: POST_TIMEOUT }
+          );
+          const hit = (r2.post?.platforms || []).find((x) => x.platform === "tiktok");
+          const st = (hit?.status || "").toLowerCase();
+          if (hit && st !== "failed" && st !== "error") {
+            result[t.slot] = {
+              status: "pending",
+              account: t.label,
+              zernioPostId: r2.post?._id || r2.post?.id,
+              inbox: true,
+              reason:
+                "Zernio hết chỗ đăng thẳng TikTok nên đã gửi video vào Hộp thư TikTok (Creator Inbox). Mở app TikTok, vào thông báo, dán caption rồi bấm đăng.",
+            };
+          } else {
+            r.reason = `${r.reason} · gửi Creator Inbox cũng lỗi: ${hit?.errorMessage || hit?.error || st || "không rõ"}`;
+          }
+        } catch (e) {
+          r.reason = `${r.reason} · gửi Creator Inbox cũng lỗi: ${(e as Error).message.slice(0, 150)}`;
+        }
+      }
     } catch (e) {
       const msg = (e as Error).message;
       console.error(`[publish] ${names} lỗi: ${msg}`);
@@ -388,6 +480,8 @@ export async function zernioPublish(input: PublishInput): Promise<Record<string,
 
   // Chờ nền tảng nào còn pending chốt xong rồi mới trả kết quả.
   await Promise.all(toSettle.map((s) => settlePending(s.key, s.postId, s.targets, result)));
+
+  if (coverLocal) fs.unlink(coverLocal).catch(() => {});
 
   // Comment tự động do Zernio lo (firstComment / mắt xích cuối chuỗi Threads) nên chỉ
   // báo là đã gửi kèm, không có xác nhận thành công thật từ nền tảng.

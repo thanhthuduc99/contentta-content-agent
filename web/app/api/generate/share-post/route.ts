@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const { body, threads } = await generateSharePost({
+    const { body } = await generateSharePost({
       source,
       url: u || undefined,
       keyword: kw || undefined,
@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
       posted: false,
       posted_at: null,
       parent: null,
-      threads,
       source_url: u || undefined,
       // Chỉ LƯU keyword để editor prefill. Rule Comment-to-DM tạo lúc đăng, không tạo ở đây.
       cta_keyword: kw || undefined,

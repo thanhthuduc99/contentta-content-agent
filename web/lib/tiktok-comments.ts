@@ -9,10 +9,9 @@ const FILE = path.join(CONTENT_DIR, "_comments", "tiktok.json");
 // Cache riêng danh sách video (khỏi quét lại profile mỗi lần refresh comment).
 const VIDEOS_FILE = path.join(CONTENT_DIR, "_comments", "tiktok-videos.json");
 
-export const TIKTOK_HANDLE = (process.env.TIKTOK_HANDLE || "").trim().replace(/^@/, "");
+export const TIKTOK_HANDLE = "thanhvuducc";
 
 async function getVideoList(): Promise<TtVideo[]> {
-  if (!TIKTOK_HANDLE) throw new Error("Thiếu TIKTOK_HANDLE trong .env");
   try {
     const v = JSON.parse(await fs.readFile(VIDEOS_FILE, "utf8")) as TtVideo[];
     if (Array.isArray(v) && v.length) return v;

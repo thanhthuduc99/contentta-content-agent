@@ -23,11 +23,12 @@ export type ContentItem = {
   posted?: boolean;
   posted_at?: string | null;
   parent?: string | null;
-  threads?: string; // biến thể caption riêng cho Threads
   edit_state?: string; // "editing" (đã gửi edit-agent) | "ready" (final.mp4 về, chờ duyệt)
   source_url?: string; // link YouTube/GitHub gốc của post sinh tự động
   cta_keyword?: string; // keyword CTA đã viết vào bài → prefill box Comment to DM lúc đăng
   first_comment?: string; // tự comment vào bài ngay sau khi đăng (chỗ để link)
+  group_posted_at?: string | null; // lần cuối đăng lên group FB/Zalo (scripts/group_poster), độc lập với status/posted
+  groups?: string; // group đã đăng OK, nối bằng ';'
   body: string;
 };
 
@@ -112,11 +113,12 @@ function parse(file: string, raw: string): ContentItem {
     posted,
     posted_at: (data.posted_at as string) ?? null,
     parent: (data.parent as string) ?? null,
-    threads: data.threads as string | undefined,
     edit_state: data.edit_state as string | undefined,
     source_url: data.source_url as string | undefined,
     cta_keyword: data.cta_keyword as string | undefined,
     first_comment: data.first_comment as string | undefined,
+    group_posted_at: (data.group_posted_at as string) ?? null,
+    groups: data.groups as string | undefined,
     body: content.trim(),
   };
 }
@@ -154,11 +156,12 @@ function toFrontmatter(item: ContentItem): string {
   fm.posted_at = item.posted_at ?? null;
   fm.parent = item.parent ?? null;
   if (item.publish_caption) fm.publish_caption = item.publish_caption;
-  if (item.threads) fm.threads = item.threads;
   if (item.edit_state) fm.edit_state = item.edit_state;
   if (item.source_url) fm.source_url = item.source_url;
   if (item.cta_keyword) fm.cta_keyword = item.cta_keyword;
   if (item.first_comment) fm.first_comment = item.first_comment;
+  if (item.group_posted_at) fm.group_posted_at = item.group_posted_at;
+  if (item.groups) fm.groups = item.groups;
   return matter.stringify(`\n${item.body}\n`, fm);
 }
 
@@ -173,7 +176,6 @@ export async function saveItem(item: ContentItem): Promise<ContentItem> {
 }
 
 async function mirrorToObsidian(item: ContentItem, contents: string) {
-  if (!OBSIDIAN_CONTENT) return;
   try {
     const obsSub = OBSIDIAN_DIRS[item.type] || "posts";
     const base = path.basename(item.id);
