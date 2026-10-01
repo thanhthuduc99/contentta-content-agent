@@ -4,6 +4,10 @@ App local-first để viết, quản lý, đăng và đo nội dung đa nền t�
 
 Ngoài phần viết và đăng bài, repo này kèm luôn pipeline dựng video dọc 1080x1920: biến một link YouTube dài thành post kèm clip và một video tóm tắt, hoặc dựng video tin tức AI hằng ngày từ một chủ đề.
 
+![Trang Analytics: engagement, reach, số bài theo nền tảng và theo tuần](docs/images/analytics-dashboard.png)
+
+*Trang Analytics tổng hợp số liệu đăng bài của mọi kênh đã kết nối.*
+
 ## Làm được gì
 
 | Nhóm | Việc cụ thể |
@@ -15,6 +19,18 @@ Ngoài phần viết và đăng bài, repo này kèm luôn pipeline dựng video
 | Đo | Analytics theo bài, inbox và comment tổng hợp, tự trả lời comment thành DM |
 | Research | Báo cáo trend hằng ngày từ X, Reddit, GitHub, YouTube |
 | Video | `/edit/youtube` biến 1 link YouTube thành post kèm clip và video dọc tóm tắt. `/edit/daily-news` dựng video tin AI từ 1 chủ đề |
+
+![Danh sách Shorts với trạng thái và nền tảng đăng của từng video](docs/images/shorts-list.png)
+
+*Trang Shorts: mỗi video là 1 file Markdown, hiện trạng thái và các nền tảng sẽ đăng.*
+
+![Trang Comment to DM: tạo rule theo keyword, tự reply công khai và gửi DM](docs/images/comment-to-dm.png)
+
+*Comment to DM: comment đúng keyword thì app tự reply công khai và gửi DM soạn sẵn.*
+
+![Trang Edit daily news: ô nhập chủ đề và hàng đợi các video đang dựng](docs/images/edit-daily-news-queue.png)
+
+*Edit daily news: dán 1 chủ đề, agent viết script và dựng video dọc, hàng đợi hiện trạng thái từng job.*
 
 ## Cài nhanh
 
